@@ -207,6 +207,7 @@ export const TH = {
   "Talk to {name}": "คุยกับ {name}",
   "{name}'s Studio": "ห้องระบายสีของ {name}",
   Language: "ภาษา",
+  Settings: "ตั้งค่า",
   English: "ภาษาอังกฤษ",
   Thai: "ภาษาไทย",
   "New conversations will use {language}.": "การสนทนาครั้งใหม่จะใช้{language}",

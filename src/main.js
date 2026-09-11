@@ -43,6 +43,7 @@ import { attachSurfaceGestures } from "./surface-gestures.js";
 import { localizeChatControls } from "./chat-labels.js";
 import { initPreventPageZoom } from "./prevent-page-zoom.js";
 import { mountTalkControls } from "./talk-controls.js";
+import { mountTalkSettings } from "./talk-settings.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
 import {
   BACKGROUNDS,
@@ -2480,6 +2481,7 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
   const update = () => {
     if (launchToken !== chatLaunchToken) return;
     localizeChatControls(container);
+    mountTalkSettings(container);
     const canvas = container.querySelector("canvas");
     if (canvas) {
       localizeText(status, "");

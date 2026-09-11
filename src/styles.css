@@ -1394,8 +1394,7 @@ input[type="color"]::-webkit-color-swatch {
   gap: 10px;
   pointer-events: none;
 }
-.talk-nav > button,
-.talk-nav .language-switch {
+.talk-nav > button {
   pointer-events: auto;
 }
 .talk-nav > span {
@@ -2435,6 +2434,50 @@ input[type="color"]::-webkit-color-swatch {
 #talkScreen #bcw-rt-expand-wrap {
   display: none !important;
 }
+/* Talk replaces the widget's AR toggle with a Settings button (language). */
+#talkScreen #bcw-rt-ar-toggle-wrap {
+  display: none !important;
+}
+#talkSettingsWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#talkSettingsWrap.talk-settings-floating {
+  position: absolute;
+  right: 22px;
+  bottom: 112px;
+  z-index: 141;
+}
+.talk-settings-button svg {
+  width: 26px;
+  height: 26px;
+  fill: #fff;
+}
+.talk-settings-panel {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fffaf4f2;
+  box-shadow: 0 8px 24px #3d2f2826;
+  white-space: nowrap;
+}
+.talk-settings-panel[hidden] {
+  display: none;
+}
+.talk-settings-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink, #3d2f28);
+}
 /* Clean Talk view: no move/face tray or gesture tip over the pet. */
 #talkScreen #talkActionTray,
 #talkScreen #talkGestureHint {
@@ -2691,9 +2734,6 @@ input[type="color"]::-webkit-color-swatch {
 }
 .flow-header > button {
   text-align: left;
-}
-.talk-nav .language-switch {
-  margin-left: auto;
 }
 .talk-nav > span {
   min-width: 0;

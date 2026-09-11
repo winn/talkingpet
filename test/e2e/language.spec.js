@@ -1,5 +1,11 @@
 import { test, expect } from "./fixtures.js";
 const switchTo = async (page, lang) => {
+  // In Talk the switch lives behind the Settings button over the pet.
+  const settings = page.locator("#talkSettingsBtn");
+  if (await settings.isVisible()) {
+    await settings.click();
+    await expect(page.locator("#talkSettingsPanel")).toBeVisible();
+  }
   const button = page.locator(`[data-language="${lang}"]:not([inert] *)`);
   await expect(button).toHaveCount(1);
   await button.click();

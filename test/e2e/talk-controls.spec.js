@@ -9,7 +9,7 @@ const stubChat = (page) =>
       contentType: "application/javascript",
       body: `window.played=[];window.emotions=[];
 window.WebAvatar={isARMode:false,avatarGroup:{rotation:{y:0},position:{x:0,y:0,z:-0.8},scale:{x:1,y:1,z:1,set(a,b,c){this.x=a;this.y=b;this.z=c;}}},setEmotion(n,w){window.emotions.push(n);}};
-window.ChatWidget={destroy(){document.querySelector('#chatWidgetContainer').replaceChildren()},playAnimation(n){window.played.push(n)},updateConfig(config){window.ChatWidgetConfig=config;document.querySelector(config.container).innerHTML='<canvas aria-label="Test avatar" width="600" height="600" style="width:100%;height:100%"></canvas>'}};
+window.ChatWidget={destroy(){document.querySelector('#chatWidgetContainer').replaceChildren()},playAnimation(n){window.played.push(n)},updateConfig(config){window.ChatWidgetConfig=config;document.querySelector(config.container).innerHTML='<canvas aria-label="Test avatar" width="600" height="600" style="width:100%;height:100%"></canvas><div id="bcw-rt-controls" style="position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:center;gap:12px"><div id="bcw-rt-volume-wrap"><button class="bcw-rt-btn" aria-label="Volume">V</button></div><div id="bcw-rt-ar-toggle-wrap"><button id="bcw-rt-ar-toggle-btn" class="bcw-rt-btn" aria-label="Enter AR">AR</button></div><div id="bcw-rt-call-btn-wrap"><button id="bcw-rt-call-btn" class="bcw-rt-btn" aria-label="Connect to AI">C</button></div></div>'}};
 window.ChatWidget.updateConfig(window.ChatWidgetConfig);`,
     }),
   );
@@ -72,6 +72,46 @@ test("talk mode keeps the tray and tip hidden for a clean pet view", async ({
     "background-image",
     /indoor_house|url\(/,
   );
+});
+
+test("talk swaps the widget's AR toggle for a Settings button that changes language", async ({
+  page,
+}) => {
+  await openTalk(page);
+  await expect(page.locator("#bcw-rt-ar-toggle-wrap")).toBeHidden();
+  await expect(page.locator(".talk-nav .language-switch")).toHaveCount(0);
+  const settings = page.locator("#bcw-rt-controls #talkSettingsBtn");
+  await expect(settings).toBeVisible();
+  await expect(settings).toHaveAttribute("aria-label", "Settings");
+  // The Settings button sits where the AR toggle was: just above the call button.
+  const order = await page
+    .locator("#bcw-rt-controls > *")
+    .evaluateAll((nodes) => nodes.map((node) => node.id));
+  expect(order.indexOf("talkSettingsWrap")).toBe(
+    order.indexOf("bcw-rt-call-btn-wrap") - 1,
+  );
+  const panel = page.locator("#talkSettingsPanel");
+  await expect(panel).toBeHidden();
+  await settings.click();
+  await expect(panel).toBeVisible();
+  await expect(settings).toHaveAttribute("aria-expanded", "true");
+  await panel.locator('[data-language="th"]').click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "th");
+  await expect(page.locator("#exitTalkBtn")).toHaveText("← เพื่อนของเรา");
+  await expect(settings).toHaveAttribute("aria-label", "ตั้งค่า");
+  await expect(panel).toBeHidden();
+  await settings.click();
+  await expect(panel.locator('[data-language="th"]')).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await settings.click();
+  await panel.locator('[data-language="en"]').click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.locator("#exitTalkBtn").click();
+  await expect(page.locator("#talkScreen")).toBeHidden();
 });
 
 test("holding and dragging spins the pet; wheel zooms and double-click resets", async ({
