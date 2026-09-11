@@ -728,7 +728,7 @@ export async function launchPetChat(pet) {
     avatarUrl: vrmBlobUrl,
     greetingInstruction: greeting,
     container: "#chatWidgetContainer",
-    backgroundColor: "transparent",
+    backgroundColor,
   };
 
   if (
@@ -740,7 +740,7 @@ export async function launchPetChat(pet) {
         widgetId: config.widgetId,
         avatarUrl: vrmBlobUrl,
         greetingInstruction: greeting,
-        backgroundColor: "transparent",
+        backgroundColor,
       });
       watchChatSurface(backgroundColor, backgroundId, launchToken);
       return;
@@ -2473,15 +2473,12 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
   const container = document.querySelector("#chatWidgetContainer");
   const status = document.querySelector("#chatStatus");
   const roomId = resolveBackgroundId(backgroundId);
-  const paintBackdrop = () => {
-    applyBackdrop(talkScreen, backgroundColor, roomId);
-    applyBackdrop(container, backgroundColor, roomId);
-    applyTalkSceneBackdrop(window, roomId, THREE);
-  };
+  let scenePaintedFor = null;
+  applyBackdrop(talkScreen, backgroundColor, roomId);
+  applyBackdrop(container, backgroundColor, roomId);
   const update = () => {
     if (launchToken !== chatLaunchToken) return;
     localizeChatControls(container);
-    paintBackdrop();
     const canvas = container.querySelector("canvas");
     if (canvas) {
       localizeText(status, "");
@@ -2489,14 +2486,18 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
         talkControls.destroy();
         talkControls = null;
       }
-      const controls = mountTalkControls({
-        canvas,
-        surface: container,
-        win: window,
-        getPetType: () => activeChatPet?.petType || activePetType,
-      });
-      if (controls) talkControls = controls;
-      paintBackdrop();
+      if (!talkControls) {
+        talkControls = mountTalkControls({
+          canvas,
+          surface: container,
+          win: window,
+          getPetType: () => activeChatPet?.petType || activePetType,
+        });
+      }
+      if (scenePaintedFor !== canvas) {
+        scenePaintedFor = canvas;
+        applyTalkSceneBackdrop(window, roomId, THREE);
+      }
     }
   };
   chatThemeObserver = new MutationObserver(update);
@@ -2505,7 +2506,7 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
     subtree: true,
     characterData: true,
     attributes: true,
-    attributeFilter: ["aria-label", "title", "placeholder", "style"],
+    attributeFilter: ["aria-label", "title", "placeholder"],
   });
   update();
   setTimeout(() => {

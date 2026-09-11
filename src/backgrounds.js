@@ -71,9 +71,6 @@ export function applyTalkSceneBackdrop(win, id, THREE) {
     }
   }
   if (!scene) return false;
-  const renderer = avatar.renderer || avatar.gl;
-  if (renderer?.setClearColor) renderer.setClearColor(0x000000, 0);
-  if (renderer) renderer.setClearAlpha?.(0);
   const loader = new THREE.TextureLoader();
   loader.load(
     background.url,

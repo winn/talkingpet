@@ -1394,11 +1394,15 @@ input[type="color"]::-webkit-color-swatch {
   left: 16px;
   right: 16px;
   top: max(16px, env(safe-area-inset-top));
-  z-index: 140;
+  z-index: 160;
   display: flex;
   align-items: center;
   gap: 10px;
   pointer-events: none;
+}
+.talk-nav > button,
+.talk-nav .language-switch {
+  pointer-events: auto;
 }
 .talk-nav > span {
   background: #ffffffde;
@@ -2441,10 +2445,6 @@ input[type="color"]::-webkit-color-swatch {
 #talkScreen #talkActionTray,
 #talkScreen #talkGestureHint {
   display: none !important;
-}
-#talkScreen #chatWidgetContainer,
-#talkScreen #chatWidgetContainer canvas {
-  background-color: transparent !important;
 }
 
 .sheet-panel > .stamp-actions {
