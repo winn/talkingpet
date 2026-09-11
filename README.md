@@ -38,7 +38,7 @@ Serve or deploy the `dist` directory. The build copies the model and painting-gu
 
 While talking, the pet can be posed without involving the AI:
 
-- Click or touch the pet and drag to move it anywhere on screen. Turn it with the **◀ ▶** buttons (tap for a quarter turn, hold to keep spinning) or the mouse wheel. **Bigger** and **Smaller** change its size; a pinch also works. Double tap or **Reset view** restores the default pose. Nothing needs two fingers.
+- Press on the pet, hold, and drag sideways to spin it. One drag across the screen is a full turn. **Bigger** and **Smaller** change its size, as do a pinch or the mouse wheel. Double tap or **Reset view** restores the default pose.
 - The tray at the bottom has **View**, then **Moves** (wave, sawasdee, jump, spin, clap, yay, dance, laugh, think, look around, sleepy, relax) and **Faces** (happy, surprised, sad, angry, relaxed, calm). One tap plays the move or sets the expression immediately.
 
 These controls use the public `playAnimation` and `setEmotion` calls and the scene group the hosted widget exposes on `window.WebAvatar`. The widget's source is still not read or modified; if a widget update removes those globals the tray hides itself and chat keeps working. The moves are humanoid clips retargeted onto the pets, so the curated list in `src/talk-controls.js` favours ones that read well on four legs. Dragging is ignored in the widget's AR mode, where the device drives the camera.
@@ -74,7 +74,6 @@ Automated tests stub the external widget at its integration boundary, without lo
 ## Artwork
 
 The interface uses portraits rendered from the repository's own VRM assets. To regenerate them, start the dev server on port 8090 and run `node tools/render-portraits.mjs`. No model or facial texture assets are changed by portrait rendering.
-
 
 ### Thai and English
 

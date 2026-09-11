@@ -37,11 +37,7 @@ export const POSE_LIMITS = {
   minScale: 0.5,
   maxScale: 2.2,
   maxOffset: 1.6,
-  turnPerPixel: 0.012,
-  wheelTurnPixels: 0.6,
-  holdTurnPerSecond: 2.4,
-  tapTurn: Math.PI / 4,
-  tapMs: 250,
+  turnsPerDrag: 1,
   sizeStep: 1.25,
 };
 
@@ -75,9 +71,6 @@ export function createPoseController(group, limits = POSE_LIMITS) {
     scale: group.scale.x || 1,
   };
   return {
-    turn(pixels) {
-      group.rotation.y += pixels * limits.turnPerPixel;
-    },
     turnRadians(radians) {
       group.rotation.y += radians;
     },
@@ -110,32 +103,29 @@ export function createPoseController(group, limits = POSE_LIMITS) {
   };
 }
 
-// One pointer drags the pet around. The wheel turns it. A pinch still
-// changes its size, but nothing requires two fingers. Double tap resets.
+// Press on the pet and drag to spin it: one drag across the screen is one
+// full turn. A pinch or the wheel changes its size. Double tap resets.
 export function attachPoseGestures(canvas, pose, options = {}) {
   const isAr = options.isAr || (() => false);
   canvas.style.touchAction = "none";
+  canvas.style.cursor = "grab";
   const gestures = attachSurfaceGestures(canvas, {
     shouldNavigate: () => true,
     start() {},
     move() {},
     end() {},
     cancel() {},
-    navigate({ dx, dy, ratio, count }) {
+    navigate({ dx, ratio, count }) {
       if (isAr()) return;
-      const unit = 2.2 / Math.max(1, canvas.clientHeight || canvas.height);
-      pose.move(dx * unit, -dy * unit);
+      const width = Math.max(1, canvas.clientWidth || canvas.width);
+      pose.turnRadians((dx / width) * POSE_LIMITS.turnsPerDrag * Math.PI * 2);
       if (count >= 2) pose.zoom(ratio);
     },
   });
   const onWheel = (event) => {
     if (isAr()) return;
     event.preventDefault();
-    const delta =
-      Math.abs(event.deltaX) > Math.abs(event.deltaY)
-        ? event.deltaX
-        : event.deltaY;
-    pose.turn(delta * POSE_LIMITS.wheelTurnPixels);
+    pose.zoom(Math.exp(-event.deltaY * 0.0015));
   };
   const onDouble = (event) => {
     event.preventDefault();
@@ -146,50 +136,11 @@ export function attachPoseGestures(canvas, pose, options = {}) {
   return {
     detach() {
       gestures.cancel();
+      canvas.style.cursor = "";
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("dblclick", onDouble);
     },
   };
-}
-
-// Tap turns by a quarter turn; holding keeps the pet spinning.
-export function attachHoldToTurn(button, pose, direction, timers = globalThis) {
-  let pressedAt = 0;
-  let frame = 0;
-  let last = 0;
-  const spin = (now) => {
-    const dt = last ? (now - last) / 1000 : 0;
-    last = now;
-    pose.turnRadians(direction * POSE_LIMITS.holdTurnPerSecond * dt);
-    frame = timers.requestAnimationFrame(spin);
-  };
-  const stop = (event) => {
-    if (!pressedAt) return;
-    const held = Date.now() - pressedAt;
-    pressedAt = 0;
-    timers.cancelAnimationFrame(frame);
-    frame = 0;
-    last = 0;
-    if (event.type === "pointerup" && held < POSE_LIMITS.tapMs)
-      pose.turnRadians(direction * POSE_LIMITS.tapTurn);
-  };
-  button.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    try {
-      button.setPointerCapture?.(event.pointerId);
-    } catch {}
-    pressedAt = Date.now();
-    last = 0;
-    frame = timers.requestAnimationFrame(spin);
-  });
-  for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
-    button.addEventListener(type, stop);
-  button.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      pose.turnRadians(direction * POSE_LIMITS.tapTurn);
-    }
-  });
 }
 
 function chip(item, onClick) {
@@ -216,19 +167,7 @@ export function renderActionTray(tray, api, pose) {
     return section;
   };
   const view = row("View", [], () => {});
-  const left = chip(
-    { id: "turn-left", label: "Turn left", icon: "◀" },
-    () => {},
-  );
-  const right = chip(
-    { id: "turn-right", label: "Turn right", icon: "▶" },
-    () => {},
-  );
-  attachHoldToTurn(left, pose, -1);
-  attachHoldToTurn(right, pose, 1);
   view.append(
-    left,
-    right,
     chip({ id: "bigger", label: "Bigger", icon: "➕" }, () =>
       pose.zoom(POSE_LIMITS.sizeStep),
     ),

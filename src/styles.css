@@ -3093,9 +3093,3 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
     font-size: 10px;
   }
 }
-.talk-chip[data-action="turn-left"],
-.talk-chip[data-action="turn-right"] {
-  background: var(--lime, #d8ec6b);
-  user-select: none;
-  -webkit-user-select: none;
-}

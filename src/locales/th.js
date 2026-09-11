@@ -229,11 +229,9 @@ export const TH = {
   "Log out": "ออกจากระบบ",
   "Available credits": "เครดิตที่เหลือ",
   "Session rate": "อัตราการใช้เครดิต",
-  "Drag to move · Wheel or ◀ ▶ to turn · Double tap resets":
-    "ลากเพื่อเลื่อน · หมุนล้อเมาส์หรือกด ◀ ▶ เพื่อหมุน · แตะสองครั้งเพื่อรีเซ็ต",
+  "Hold and drag the pet to spin it · Pinch or wheel to resize · Double tap resets":
+    "กดค้างแล้วลากเพื่อหมุนเพื่อน · บีบนิ้วหรือหมุนล้อเมาส์เพื่อย่อขยาย · แตะสองครั้งเพื่อรีเซ็ต",
   View: "มุมมอง",
-  "Turn left": "หมุนซ้าย",
-  "Turn right": "หมุนขวา",
   Bigger: "ขยาย",
   Smaller: "ย่อ",
   "Pet actions": "ท่าทางของเพื่อน",

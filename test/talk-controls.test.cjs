@@ -46,10 +46,8 @@ test("pose controller turns, moves within limits, zooms within limits and resets
   const group = fakeGroup();
   group.rotation.y = 0.25;
   const pose = createPoseController(group);
-  pose.turn(100);
-  assert.ok(
-    Math.abs(group.rotation.y - (0.25 + 100 * POSE_LIMITS.turnPerPixel)) < 1e-9,
-  );
+  pose.turnRadians(1);
+  assert.ok(Math.abs(group.rotation.y - 1.25) < 1e-9);
   pose.move(10, -10);
   assert.equal(group.position.x, POSE_LIMITS.maxOffset);
   assert.equal(group.position.y, -POSE_LIMITS.maxOffset);
@@ -81,55 +79,11 @@ test("every talk action and face label has a Thai translation", async () => {
     "Moves",
     "Faces",
     "View",
-    "Turn left",
-    "Turn right",
     "Bigger",
     "Smaller",
     "Reset view",
     "Pet actions",
-    "Drag to move · Wheel or ◀ ▶ to turn · Double tap resets",
+    "Hold and drag the pet to spin it · Pinch or wheel to resize · Double tap resets",
   ])
     assert.match(TH[key] || "", /[ก-๙]/, `missing Thai for ${key}`);
-});
-
-test("turn buttons step on a tap and keep spinning while held", async () => {
-  const { attachHoldToTurn, createPoseController, POSE_LIMITS } =
-    await import("../src/talk-controls.js");
-  const group = fakeGroup();
-  const pose = createPoseController(group);
-  const listeners = {};
-  const button = {
-    addEventListener: (type, fn) => (listeners[type] = fn),
-    setPointerCapture() {},
-  };
-  const frames = [];
-  const timers = {
-    requestAnimationFrame: (fn) => frames.push(fn) && frames.length,
-    cancelAnimationFrame: () => (frames.length = 0),
-  };
-  attachHoldToTurn(button, pose, 1, timers);
-  listeners.pointerdown({ preventDefault() {}, pointerId: 1 });
-  listeners.pointerup({ type: "pointerup" });
-  assert.ok(Math.abs(group.rotation.y - POSE_LIMITS.tapTurn) < 1e-9);
-  listeners.pointerdown({ preventDefault() {}, pointerId: 1 });
-  frames.shift()(1000);
-  frames.shift()(1500);
-  assert.ok(
-    Math.abs(
-      group.rotation.y -
-        (POSE_LIMITS.tapTurn + POSE_LIMITS.holdTurnPerSecond * 0.5),
-    ) < 1e-9,
-  );
-  const now = Date.now;
-  Date.now = () => now() + 1000;
-  listeners.pointerup({ type: "pointerup" });
-  Date.now = now;
-  assert.equal(frames.length, 0);
-  listeners.keydown({ key: "Enter", preventDefault() {} });
-  assert.ok(
-    Math.abs(
-      group.rotation.y -
-        (2 * POSE_LIMITS.tapTurn + POSE_LIMITS.holdTurnPerSecond * 0.5),
-    ) < 1e-9,
-  );
 });

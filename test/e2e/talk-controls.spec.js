@@ -14,8 +14,33 @@ window.ChatWidget.updateConfig(window.ChatWidgetConfig);`,
     }),
   );
 
+// Pets are kept in memory so this spec does not depend on the storage schema.
+const stubPets = (page) => {
+  const rows = new Map();
+  return page.route("**/rest/v1/pets**", (route) => {
+    const request = route.request();
+    const method = request.method();
+    if (method === "GET") {
+      return route.fulfill({ json: [...rows.values()] });
+    }
+    if (method === "POST") {
+      const body = JSON.parse(request.postData() || "{}");
+      for (const row of Array.isArray(body) ? body : [body])
+        rows.set(row.id, row);
+      return route.fulfill({ status: 201, json: [] });
+    }
+    if (method === "DELETE") {
+      const id = new URL(request.url()).searchParams.get("id");
+      rows.delete(id ? id.replace(/^eq\./, "") : "");
+      return route.fulfill({ status: 204, body: "" });
+    }
+    return route.continue();
+  });
+};
+
 async function openTalk(page) {
   await stubChat(page);
+  await stubPets(page);
   await page.goto("/");
   await page.evaluate(async () => {
     const { savePet } = await import("/src/pet-db.js");
@@ -56,7 +81,7 @@ test("talk mode shows one-tap moves and faces that call the widget directly", as
   await talkNav.getByRole("button", { name: "English", exact: true }).click();
 });
 
-test("dragging moves the pet, wheel and buttons turn it, size chips and reset work", async ({
+test("holding and dragging spins the pet; wheel, size chips and reset work", async ({
   page,
 }) => {
   await openTalk(page);
@@ -77,31 +102,27 @@ test("dragging moves the pet, wheel and buttons turn it, size chips and reset wo
     });
   await page.mouse.move(cx, cy);
   await page.mouse.down();
-  await page.mouse.move(cx + 60, cy - 40, { steps: 6 });
+  await page.mouse.move(cx + box.width / 4, cy + 30, { steps: 8 });
   await page.mouse.up();
   let g = await group();
-  expect(g.x).toBeGreaterThan(0);
-  expect(g.y).toBeGreaterThan(0);
-  expect(g.r).toBe(0);
+  expect(g.r).toBeCloseTo(Math.PI / 2, 1);
+  expect(g.x).toBe(0);
+  expect(g.y).toBe(0);
   await page.mouse.move(cx, cy);
-  await page.mouse.wheel(0, 200);
+  await page.mouse.down();
+  await page.mouse.move(cx - box.width / 2, cy, { steps: 8 });
+  await page.mouse.up();
   g = await group();
-  expect(g.r).toBeGreaterThan(0.5);
-  await tray.getByRole("button", { name: "Reset view" }).click();
-  await tray.getByRole("button", { name: "Turn right" }).click();
-  g = await group();
-  expect(g.r).toBeCloseTo(Math.PI / 4, 5);
-  await tray.getByRole("button", { name: "Turn left" }).click();
-  await tray.getByRole("button", { name: "Turn left" }).click();
-  g = await group();
-  expect(g.r).toBeCloseTo(-Math.PI / 4, 5);
-  await tray.getByRole("button", { name: "Bigger" }).click();
+  expect(g.r).toBeCloseTo(-Math.PI / 2, 1);
+  await page.mouse.wheel(0, -300);
   g = await group();
   expect(g.s).toBeGreaterThan(1);
   await tray.getByRole("button", { name: "Smaller" }).click();
   await tray.getByRole("button", { name: "Smaller" }).click();
+  await tray.getByRole("button", { name: "Smaller" }).click();
   g = await group();
   expect(g.s).toBeLessThan(1);
+  await tray.getByRole("button", { name: "Bigger" }).click();
   await tray.getByRole("button", { name: "Reset view" }).click();
   g = await group();
   expect(g).toEqual({ r: 0, x: 0, y: 0, s: 1 });
