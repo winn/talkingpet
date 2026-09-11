@@ -38,6 +38,11 @@ export const POSE_LIMITS = {
   maxScale: 2.2,
   maxOffset: 1.6,
   turnPerPixel: 0.012,
+  wheelTurnPixels: 0.6,
+  holdTurnPerSecond: 2.4,
+  tapTurn: Math.PI / 4,
+  tapMs: 250,
+  sizeStep: 1.25,
 };
 
 // Reads the widget's public surface. Returns null when it is not available.
@@ -73,6 +78,9 @@ export function createPoseController(group, limits = POSE_LIMITS) {
     turn(pixels) {
       group.rotation.y += pixels * limits.turnPerPixel;
     },
+    turnRadians(radians) {
+      group.rotation.y += radians;
+    },
     move(dx, dy) {
       group.position.x = clamp(
         group.position.x + dx,
@@ -102,17 +110,11 @@ export function createPoseController(group, limits = POSE_LIMITS) {
   };
 }
 
-// One pointer turns the pet. Two fingers, a right button or Shift move it.
-// Pinch and wheel change its size. Double tap resets the view.
+// One pointer drags the pet around. The wheel turns it. A pinch still
+// changes its size, but nothing requires two fingers. Double tap resets.
 export function attachPoseGestures(canvas, pose, options = {}) {
   const isAr = options.isAr || (() => false);
-  let moving = false;
   canvas.style.touchAction = "none";
-  const trackModifier = (event) => {
-    if (event.target !== canvas) return;
-    moving = event.button === 2 || event.shiftKey;
-  };
-  canvas.addEventListener("pointerdown", trackModifier, true);
   const gestures = attachSurfaceGestures(canvas, {
     shouldNavigate: () => true,
     start() {},
@@ -122,20 +124,18 @@ export function attachPoseGestures(canvas, pose, options = {}) {
     navigate({ dx, dy, ratio, count }) {
       if (isAr()) return;
       const unit = 2.2 / Math.max(1, canvas.clientHeight || canvas.height);
-      if (count >= 2) {
-        pose.move(dx * unit, -dy * unit);
-        pose.zoom(ratio);
-      } else if (moving) {
-        pose.move(dx * unit, -dy * unit);
-      } else {
-        pose.turn(dx);
-      }
+      pose.move(dx * unit, -dy * unit);
+      if (count >= 2) pose.zoom(ratio);
     },
   });
   const onWheel = (event) => {
     if (isAr()) return;
     event.preventDefault();
-    pose.zoom(Math.exp(-event.deltaY * 0.0015));
+    const delta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : event.deltaY;
+    pose.turn(delta * POSE_LIMITS.wheelTurnPixels);
   };
   const onDouble = (event) => {
     event.preventDefault();
@@ -146,11 +146,50 @@ export function attachPoseGestures(canvas, pose, options = {}) {
   return {
     detach() {
       gestures.cancel();
-      canvas.removeEventListener("pointerdown", trackModifier, true);
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("dblclick", onDouble);
     },
   };
+}
+
+// Tap turns by a quarter turn; holding keeps the pet spinning.
+export function attachHoldToTurn(button, pose, direction, timers = globalThis) {
+  let pressedAt = 0;
+  let frame = 0;
+  let last = 0;
+  const spin = (now) => {
+    const dt = last ? (now - last) / 1000 : 0;
+    last = now;
+    pose.turnRadians(direction * POSE_LIMITS.holdTurnPerSecond * dt);
+    frame = timers.requestAnimationFrame(spin);
+  };
+  const stop = (event) => {
+    if (!pressedAt) return;
+    const held = Date.now() - pressedAt;
+    pressedAt = 0;
+    timers.cancelAnimationFrame(frame);
+    frame = 0;
+    last = 0;
+    if (event.type === "pointerup" && held < POSE_LIMITS.tapMs)
+      pose.turnRadians(direction * POSE_LIMITS.tapTurn);
+  };
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    try {
+      button.setPointerCapture?.(event.pointerId);
+    } catch {}
+    pressedAt = Date.now();
+    last = 0;
+    frame = timers.requestAnimationFrame(spin);
+  });
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+    button.addEventListener(type, stop);
+  button.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      pose.turnRadians(direction * POSE_LIMITS.tapTurn);
+    }
+  });
 }
 
 function chip(item, onClick) {
@@ -176,6 +215,31 @@ export function renderActionTray(tray, api, pose) {
     for (const item of items) section.append(chip(item, handler));
     return section;
   };
+  const view = row("View", [], () => {});
+  const left = chip(
+    { id: "turn-left", label: "Turn left", icon: "◀" },
+    () => {},
+  );
+  const right = chip(
+    { id: "turn-right", label: "Turn right", icon: "▶" },
+    () => {},
+  );
+  attachHoldToTurn(left, pose, -1);
+  attachHoldToTurn(right, pose, 1);
+  view.append(
+    left,
+    right,
+    chip({ id: "bigger", label: "Bigger", icon: "➕" }, () =>
+      pose.zoom(POSE_LIMITS.sizeStep),
+    ),
+    chip({ id: "smaller", label: "Smaller", icon: "➖" }, () =>
+      pose.zoom(1 / POSE_LIMITS.sizeStep),
+    ),
+    chip({ id: "reset-view", label: "Reset view", icon: "🎯" }, () =>
+      pose.reset(),
+    ),
+  );
+  tray.append(view);
   if (api.playAnimation) {
     tray.append(
       row("Moves", TALK_ACTIONS, (item) => {
@@ -198,12 +262,6 @@ export function renderActionTray(tray, api, pose) {
       }),
     );
   }
-  const reset = chip(
-    { id: "reset-view", label: "Reset view", icon: "🎯" },
-    () => pose.reset(),
-  );
-  reset.classList.add("talk-chip-reset");
-  tray.append(reset);
   tray.hidden = !tray.childElementCount;
 }
 

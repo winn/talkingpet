@@ -77,6 +77,59 @@ test("every talk action and face label has a Thai translation", async () => {
       `missing Thai for ${item.label}`,
     );
   }
-  for (const key of ["Moves", "Faces", "Reset view", "Pet actions"])
+  for (const key of [
+    "Moves",
+    "Faces",
+    "View",
+    "Turn left",
+    "Turn right",
+    "Bigger",
+    "Smaller",
+    "Reset view",
+    "Pet actions",
+    "Drag to move · Wheel or ◀ ▶ to turn · Double tap resets",
+  ])
     assert.match(TH[key] || "", /[ก-๙]/, `missing Thai for ${key}`);
+});
+
+test("turn buttons step on a tap and keep spinning while held", async () => {
+  const { attachHoldToTurn, createPoseController, POSE_LIMITS } =
+    await import("../src/talk-controls.js");
+  const group = fakeGroup();
+  const pose = createPoseController(group);
+  const listeners = {};
+  const button = {
+    addEventListener: (type, fn) => (listeners[type] = fn),
+    setPointerCapture() {},
+  };
+  const frames = [];
+  const timers = {
+    requestAnimationFrame: (fn) => frames.push(fn) && frames.length,
+    cancelAnimationFrame: () => (frames.length = 0),
+  };
+  attachHoldToTurn(button, pose, 1, timers);
+  listeners.pointerdown({ preventDefault() {}, pointerId: 1 });
+  listeners.pointerup({ type: "pointerup" });
+  assert.ok(Math.abs(group.rotation.y - POSE_LIMITS.tapTurn) < 1e-9);
+  listeners.pointerdown({ preventDefault() {}, pointerId: 1 });
+  frames.shift()(1000);
+  frames.shift()(1500);
+  assert.ok(
+    Math.abs(
+      group.rotation.y -
+        (POSE_LIMITS.tapTurn + POSE_LIMITS.holdTurnPerSecond * 0.5),
+    ) < 1e-9,
+  );
+  const now = Date.now;
+  Date.now = () => now() + 1000;
+  listeners.pointerup({ type: "pointerup" });
+  Date.now = now;
+  assert.equal(frames.length, 0);
+  listeners.keydown({ key: "Enter", preventDefault() {} });
+  assert.ok(
+    Math.abs(
+      group.rotation.y -
+        (2 * POSE_LIMITS.tapTurn + POSE_LIMITS.holdTurnPerSecond * 0.5),
+    ) < 1e-9,
+  );
 });

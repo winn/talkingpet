@@ -229,8 +229,13 @@ export const TH = {
   "Log out": "ออกจากระบบ",
   "Available credits": "เครดิตที่เหลือ",
   "Session rate": "อัตราการใช้เครดิต",
-  "Drag to turn · Two fingers move & zoom · Double tap resets":
-    "ลากเพื่อหมุน · สองนิ้วเลื่อนและซูม · แตะสองครั้งเพื่อรีเซ็ต",
+  "Drag to move · Wheel or ◀ ▶ to turn · Double tap resets":
+    "ลากเพื่อเลื่อน · หมุนล้อเมาส์หรือกด ◀ ▶ เพื่อหมุน · แตะสองครั้งเพื่อรีเซ็ต",
+  View: "มุมมอง",
+  "Turn left": "หมุนซ้าย",
+  "Turn right": "หมุนขวา",
+  Bigger: "ขยาย",
+  Smaller: "ย่อ",
   "Pet actions": "ท่าทางของเพื่อน",
   Moves: "ท่าทาง",
   Faces: "สีหน้า",

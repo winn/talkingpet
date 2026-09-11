@@ -56,11 +56,12 @@ test("talk mode shows one-tap moves and faces that call the widget directly", as
   await talkNav.getByRole("button", { name: "English", exact: true }).click();
 });
 
-test("dragging turns the pet, shift-drag moves it, wheel zooms and reset restores", async ({
+test("dragging moves the pet, wheel and buttons turn it, size chips and reset work", async ({
   page,
 }) => {
   await openTalk(page);
   const canvas = page.locator("#chatWidgetContainer canvas");
+  const tray = page.locator("#talkActionTray");
   const box = await canvas.boundingBox();
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
@@ -76,28 +77,32 @@ test("dragging turns the pet, shift-drag moves it, wheel zooms and reset restore
     });
   await page.mouse.move(cx, cy);
   await page.mouse.down();
-  await page.mouse.move(cx + 60, cy, { steps: 6 });
+  await page.mouse.move(cx + 60, cy - 40, { steps: 6 });
   await page.mouse.up();
   let g = await group();
-  expect(g.r).toBeGreaterThan(0.3);
-  expect(g.x).toBe(0);
-  await page.keyboard.down("Shift");
-  await page.mouse.move(cx, cy);
-  await page.mouse.down();
-  await page.mouse.move(cx + 40, cy - 40, { steps: 4 });
-  await page.mouse.up();
-  await page.keyboard.up("Shift");
-  g = await group();
   expect(g.x).toBeGreaterThan(0);
   expect(g.y).toBeGreaterThan(0);
+  expect(g.r).toBe(0);
   await page.mouse.move(cx, cy);
-  await page.mouse.wheel(0, -300);
+  await page.mouse.wheel(0, 200);
+  g = await group();
+  expect(g.r).toBeGreaterThan(0.5);
+  await tray.getByRole("button", { name: "Reset view" }).click();
+  await tray.getByRole("button", { name: "Turn right" }).click();
+  g = await group();
+  expect(g.r).toBeCloseTo(Math.PI / 4, 5);
+  await tray.getByRole("button", { name: "Turn left" }).click();
+  await tray.getByRole("button", { name: "Turn left" }).click();
+  g = await group();
+  expect(g.r).toBeCloseTo(-Math.PI / 4, 5);
+  await tray.getByRole("button", { name: "Bigger" }).click();
   g = await group();
   expect(g.s).toBeGreaterThan(1);
-  await page
-    .locator("#talkActionTray")
-    .getByRole("button", { name: "Reset view" })
-    .click();
+  await tray.getByRole("button", { name: "Smaller" }).click();
+  await tray.getByRole("button", { name: "Smaller" }).click();
+  g = await group();
+  expect(g.s).toBeLessThan(1);
+  await tray.getByRole("button", { name: "Reset view" }).click();
   g = await group();
   expect(g).toEqual({ r: 0, x: 0, y: 0, s: 1 });
   await page.locator("#exitTalkBtn").click();
