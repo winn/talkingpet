@@ -102,3 +102,14 @@ test("auth module rejects clearly when Supabase is not configured", async () => 
   assert.throws(() => auth.getSupabase(), /Supabase is not configured/);
   assert.equal(auth.TALK_COST, 1);
 });
+
+test("coupon codes are generated and normalized consistently", async () => {
+  const { generateCouponCode, normalizeCouponCode } = await import("../src/auth.js");
+  const code = generateCouponCode();
+  assert.match(code, /^MOMO-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+  assert.equal(normalizeCouponCode(code), code);
+  assert.equal(normalizeCouponCode(" momo-abc 123 "), "MOMO-ABC123");
+  assert.equal(normalizeCouponCode("ทดสอบ"), "");
+  assert.equal(normalizeCouponCode("AัB́C"), "ABC");
+  assert.notEqual(generateCouponCode(), generateCouponCode());
+});

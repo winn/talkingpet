@@ -409,6 +409,9 @@
           <button type="button" role="tab" data-admin-tab="packs" aria-selected="false">
             Point packs
           </button>
+          <button type="button" role="tab" data-admin-tab="coupons" aria-selected="false">
+            Coupons
+          </button>
         </div>
         <p id="adminError" class="form-error" role="alert" hidden></p>
         <p id="adminNote" class="admin-note" role="status" hidden></p>
@@ -455,6 +458,45 @@
             </div>
           </form>
           <div id="adminPackList" class="admin-list"></div>
+        </section>
+        <section id="adminCouponsPanel" class="admin-panel" hidden>
+          <h2>Coupons</h2>
+          <p class="admin-lead">
+            Codes that top up points. Set how many points a code gives, how many
+            codes to make, how many people can use each one, and an optional
+            claim-by date. Users redeem codes from their account sheet.
+          </p>
+          <form id="couponCreateForm" class="pack-form">
+            <h3>New coupons</h3>
+            <div class="pack-form-grid">
+              <label>Points per code<input name="points" type="number" min="1" step="1" required /></label>
+              <label>How many codes<input name="quantity" type="number" min="1" max="500" step="1" value="1" /></label>
+              <label>Uses per code<input name="maxRedemptions" type="number" min="1" step="1" value="1" placeholder="blank = unlimited" /></label>
+              <label>Claim by (optional)<input name="expiresAt" type="date" /></label>
+              <label>Custom code (optional)<input name="code" type="text" maxlength="64" placeholder="SUMMER2026" /></label>
+              <label>Note (optional)<input name="note" type="text" maxlength="120" placeholder="School fair" /></label>
+            </div>
+            <div class="pack-form-actions">
+              <button type="submit" class="primary">Create coupons</button>
+            </div>
+          </form>
+          <div id="couponBatch" class="coupon-batch" hidden>
+            <div class="coupon-batch-head">
+              <strong id="couponBatchTitle">New codes</strong>
+              <button id="couponBatchCopy" type="button" class="secondary">Copy all</button>
+            </div>
+            <textarea id="couponBatchCodes" readonly rows="4"></textarea>
+          </div>
+          <div class="admin-toolbar">
+            <input
+              id="adminCouponSearch"
+              type="search"
+              placeholder="Search codes or notes"
+              aria-label="Search coupons"
+            />
+            <span id="adminCouponCount" class="admin-count"></span>
+          </div>
+          <div id="adminCouponList" class="admin-list"></div>
         </section>
       </div>
     </div>
@@ -1228,6 +1270,25 @@
               >Buying points is not set up yet. Ask an admin for points.</span
             >
           </p>
+        </section>
+        <section class="coupon-section">
+          <h3><span data-i18n="Have a coupon code?">Have a coupon code?</span></h3>
+          <form id="couponForm" class="coupon-form">
+            <input
+              id="couponCode"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="64"
+              placeholder="MOMO-XXXXXXXX"
+              aria-label="Coupon code"
+              data-i18n-aria-label="Coupon code"
+            />
+            <button id="couponRedeemBtn" type="submit" class="secondary">
+              <span data-i18n="Redeem">Redeem</span>
+            </button>
+          </form>
+          <p id="couponMessage" class="coupon-message" role="status" hidden></p>
         </section>
         <div class="account-actions">
           <button id="openAdminBtn" type="button" class="secondary" hidden>

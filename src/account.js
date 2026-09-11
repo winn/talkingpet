@@ -1,17 +1,22 @@
 import {
   TALK_COST,
+  adminCreateCoupons,
   adminDeletePack,
   adminGrantPoints,
+  adminListCoupons,
   adminListUsers,
   adminSavePack,
   adminSetAdmin,
+  adminUpdateCoupon,
   fetchBillingStatus,
   fetchProfile,
   getSession,
   getSupabase,
   listPacks,
   money,
+  normalizeCouponCode,
   onAuthChange,
+  redeemCoupon,
   registerWithPassword,
   signInWithGoogle,
   signInWithPassword,
@@ -42,7 +47,14 @@ let loginMode = "signin";
 let adminTab = "users";
 let adminUsers = [];
 let adminPacks = [];
+let adminCoupons = [];
 let editingPackId = null;
+
+const ADMIN_PATH = "/admin";
+
+function wantsAdminRoute() {
+  return window.location.pathname.replace(/\/+$/, "") === ADMIN_PATH;
+}
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -151,6 +163,14 @@ export async function initAccount(options = {}) {
   bindLoginScreen();
   bindAccountSheet();
   bindAdminScreen();
+  bindCouponForm();
+  window.addEventListener("popstate", () => {
+    if (wantsAdminRoute()) openAdmin();
+    else if (!$("#adminScreen").classList.contains("hidden")) {
+      closeAdmin({ keepUrl: true });
+      hooks.onAdminClosed();
+    }
+  });
   fetchBillingStatus().then((status) => {
     billing = status || { configured: false };
     renderPackList();
@@ -190,6 +210,13 @@ async function applySession(session, { initial = false } = {}) {
   hideLogin();
   await refreshProfile();
   if (!initial) hooks.onSignedIn();
+  if (wantsAdminRoute()) {
+    if (profile?.isAdmin) openAdmin();
+    else {
+      window.history.replaceState(null, "", "/");
+      hooks.notify("Admins only.");
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -421,17 +448,20 @@ async function waitForPurchase(sessionId, attempt = 0) {
 export function openAdmin() {
   if (!profile?.isAdmin) return;
   const screen = $("#adminScreen");
+  if (!wantsAdminRoute()) window.history.pushState(null, "", ADMIN_PATH);
   show(screen);
   screen.style.display = "flex";
   selectAdminTab(adminTab);
   loadAdminUsers();
   loadAdminPacks();
+  loadAdminCoupons();
 }
 
-export function closeAdmin() {
+export function closeAdmin({ keepUrl = false } = {}) {
   const screen = $("#adminScreen");
   hide(screen);
   screen.style.display = "none";
+  if (!keepUrl && wantsAdminRoute()) window.history.replaceState(null, "", "/");
 }
 
 function selectAdminTab(tab) {
@@ -441,6 +471,7 @@ function selectAdminTab(tab) {
   });
   $("#adminUsersPanel").hidden = tab !== "users";
   $("#adminPacksPanel").hidden = tab !== "packs";
+  $("#adminCouponsPanel").hidden = tab !== "coupons";
 }
 
 function setAdminMessage(kind, message) {
@@ -481,7 +512,7 @@ function renderAdminUsers() {
           <p class="admin-row-title">${escapeHtml(user.email || "No email")}${
             user.is_admin ? `<span class="admin-chip">admin</span>` : ""
           }${self ? `<span class="admin-chip is-you">you</span>` : ""}</p>
-          <p class="admin-row-meta">${escapeHtml(created)} · ${user.pet_count} pets · bought ${user.purchased_points} · granted ${user.granted_points}</p>
+          <p class="admin-row-meta">${escapeHtml(created)} · ${user.pet_count} pets · bought ${user.purchased_points} · granted ${user.granted_points} · coupons ${user.coupon_points ?? 0}</p>
         </div>
         <div class="admin-row-points"><strong>${Number(user.points).toLocaleString("en-US")}</strong><span>points</span></div>
         <form class="grant-form">
@@ -567,7 +598,9 @@ function bindAdminScreen() {
   $("#adminRefreshBtn").addEventListener("click", () => {
     loadAdminUsers();
     loadAdminPacks();
+    loadAdminCoupons();
   });
+  bindAdminCoupons();
 
   $("#adminUserList").addEventListener("submit", async (event) => {
     const form = event.target.closest(".grant-form");
@@ -676,6 +709,195 @@ function bindAdminScreen() {
       await loadAdminPacks();
     } catch (err) {
       setAdminMessage("error", err instanceof Error ? err.message : "Could not update the pack.");
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Coupons: redeem (account sheet) and manage (admin)
+// ---------------------------------------------------------------------------
+
+function setCouponMessage(message, success = false) {
+  const box = $("#couponMessage");
+  box.hidden = !message;
+  box.textContent = message ?? "";
+  box.classList.toggle("is-success", success);
+}
+
+function bindCouponForm() {
+  const input = $("#couponCode");
+  input.addEventListener("input", () => {
+    input.value = input.value.toUpperCase();
+    setCouponMessage(null);
+  });
+  $("#couponForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const code = normalizeCouponCode(input.value);
+    if (!code) {
+      setCouponMessage(t("That coupon code is not valid."));
+      return;
+    }
+    const button = $("#couponRedeemBtn");
+    button.disabled = true;
+    localizeText(button.querySelector("span"), "Redeeming…");
+    try {
+      const result = await redeemCoupon(code);
+      if (profile) profile.points = result.balance;
+      renderPointsBadge();
+      renderAccountSheet();
+      input.value = "";
+      setCouponMessage(t("{n} points added!", { n: result.points }), true);
+      hooks.notify("{n} points added!", { n: result.points });
+      refreshProfile();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      setCouponMessage(t(message || "That coupon code is not valid."));
+    } finally {
+      button.disabled = false;
+      localizeText(button.querySelector("span"), "Redeem");
+    }
+  });
+}
+
+async function loadAdminCoupons() {
+  try {
+    adminCoupons = await adminListCoupons();
+  } catch (err) {
+    adminCoupons = [];
+    setAdminMessage("error", err instanceof Error ? err.message : "Could not load coupons.");
+  }
+  renderAdminCoupons();
+}
+
+function couponStatus(coupon) {
+  if (coupon.active === false) return "disabled";
+  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) return "expired";
+  if (coupon.max_redemptions !== null && coupon.redemption_count >= coupon.max_redemptions) return "used up";
+  return "";
+}
+
+function renderAdminCoupons() {
+  const list = $("#adminCouponList");
+  const query = $("#adminCouponSearch").value.trim().toLowerCase();
+  const rows = adminCoupons.filter(
+    (c) => !query || c.code.toLowerCase().includes(query) || (c.note ?? "").toLowerCase().includes(query),
+  );
+  $("#adminCouponCount").textContent = `${rows.length} / ${adminCoupons.length}`;
+  if (rows.length === 0) {
+    list.innerHTML = `<p class="admin-empty">No coupons yet. Create some above.</p>`;
+    return;
+  }
+  list.innerHTML = rows
+    .map((c) => {
+      const status = couponStatus(c);
+      const uses = `${c.redemption_count} / ${c.max_redemptions ?? "∞"}`;
+      const expires = c.expires_at ? `claim by ${new Date(c.expires_at).toLocaleDateString()}` : "no expiry";
+      return `<div class="admin-row" data-coupon="${escapeHtml(c.id)}">
+        <div class="admin-row-main">
+          <p class="admin-row-title"><span class="coupon-code">${escapeHtml(c.code)}</span>${
+            status ? `<span class="admin-chip is-off">${status}</span>` : ""
+          }</p>
+          <p class="admin-row-meta">${c.points.toLocaleString("en-US")} points · used ${uses} · ${escapeHtml(expires)}${
+            c.note ? ` · ${escapeHtml(c.note)}` : ""
+          } · ${new Date(c.created_at).toLocaleDateString()}</p>
+        </div>
+        <div class="admin-row-actions">
+          <button type="button" class="secondary copy-coupon">Copy</button>
+          <button type="button" class="secondary toggle-coupon">${c.active === false ? "Enable" : "Disable"}</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function bindAdminCoupons() {
+  $("#adminCouponSearch").addEventListener("input", renderAdminCoupons);
+
+  $("#couponCreateForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const points = Number.parseInt(form.elements.points.value, 10);
+    const quantity = Number.parseInt(form.elements.quantity.value || "1", 10);
+    const maxRaw = form.elements.maxRedemptions.value.trim();
+    const maxRedemptions = maxRaw === "" ? null : Number.parseInt(maxRaw, 10);
+    const code = form.elements.code.value.trim();
+    const note = form.elements.note.value.trim();
+    const dateRaw = form.elements.expiresAt.value;
+    if (!Number.isInteger(points) || points <= 0 || points > 100000) {
+      return setAdminMessage("error", "Points per code must be between 1 and 100000.");
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 500) {
+      return setAdminMessage("error", "Create between 1 and 500 codes at a time.");
+    }
+    if (maxRedemptions !== null && (!Number.isInteger(maxRedemptions) || maxRedemptions <= 0)) {
+      return setAdminMessage("error", "Uses per code must be a positive number, or blank for unlimited.");
+    }
+    if (code && quantity !== 1) {
+      return setAdminMessage("error", "A custom code can only be created one at a time.");
+    }
+    if (code && !normalizeCouponCode(code)) {
+      return setAdminMessage("error", "Custom codes use letters, numbers and hyphens.");
+    }
+    let expiresAt = null;
+    if (dateRaw) {
+      const end = new Date(`${dateRaw}T23:59:59`);
+      if (Number.isNaN(end.getTime())) return setAdminMessage("error", "Claim-by date is invalid.");
+      expiresAt = end.toISOString();
+    }
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    try {
+      const { coupons } = await adminCreateCoupons({ points, quantity, code, maxRedemptions, expiresAt, note });
+      const codes = coupons.map((c) => c.code);
+      $("#couponBatchTitle").textContent = `${codes.length} new ${codes.length === 1 ? "code" : "codes"} · ${points} points each`;
+      $("#couponBatchCodes").value = codes.join("\n");
+      $("#couponBatchCodes").rows = Math.min(10, Math.max(2, codes.length));
+      $("#couponBatch").hidden = false;
+      setAdminMessage("note", `Created ${codes.length} coupon${codes.length === 1 ? "" : "s"}.`);
+      form.elements.code.value = "";
+      form.elements.note.value = "";
+      await loadAdminCoupons();
+    } catch (err) {
+      setAdminMessage("error", err instanceof Error ? err.message : "Could not create coupons.");
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $("#couponBatchCopy").addEventListener("click", async () => {
+    const ok = await copyText($("#couponBatchCodes").value);
+    setAdminMessage(ok ? "note" : "error", ok ? "Codes copied." : "Could not copy. Select the codes and copy them by hand.");
+  });
+
+  $("#adminCouponList").addEventListener("click", async (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    const id = button.closest(".admin-row")?.dataset.coupon;
+    const coupon = adminCoupons.find((c) => c.id === id);
+    if (!coupon) return;
+    if (button.classList.contains("copy-coupon")) {
+      const ok = await copyText(coupon.code);
+      setAdminMessage(ok ? "note" : "error", ok ? `Copied ${coupon.code}.` : "Could not copy.");
+      return;
+    }
+    if (button.classList.contains("toggle-coupon")) {
+      button.disabled = true;
+      try {
+        await adminUpdateCoupon(coupon.id, { active: coupon.active === false });
+        await loadAdminCoupons();
+      } catch (err) {
+        setAdminMessage("error", err instanceof Error ? err.message : "Could not update the coupon.");
+        button.disabled = false;
+      }
     }
   });
 }

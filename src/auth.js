@@ -246,3 +246,99 @@ function friendlyAdminError(message) {
   if (/bad_amount/.test(message)) return "Enter a whole number of points (not zero).";
   return message;
 }
+
+// ---- Coupons ---------------------------------------------------------------
+
+const COUPON_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/** Short shareable code, e.g. MOMO-K7Q2XW9P. */
+export function generateCouponCode() {
+  const bytes = new Uint8Array(8);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  return `MOMO-${Array.from(bytes, (b) => COUPON_ALPHABET[b % COUPON_ALPHABET.length]).join("")}`;
+}
+
+/** Same canonical form the database uses: letters, digits, hyphens, upper case. */
+export function normalizeCouponCode(code) {
+  return String(code ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f\u0e31\u0e34-\u0e3a\u0e47-\u0e4e]/g, "")
+    .replace(/[^a-zA-Z0-9-]+/g, "")
+    .toUpperCase();
+}
+
+export const COUPON_ERRORS = {
+  invalid: "That coupon code is not valid.",
+  inactive: "This coupon is no longer active.",
+  expired: "This coupon has expired.",
+  exhausted: "This coupon has already been fully redeemed.",
+  already_redeemed: "You have already redeemed this coupon.",
+};
+
+/** Redeem a code for the signed-in user. Resolves { points, balance }; throws a friendly message. */
+export async function redeemCoupon(code) {
+  const normalized = normalizeCouponCode(code);
+  if (!normalized) throw new Error(COUPON_ERRORS.invalid);
+  const { data, error } = await getSupabase().rpc("redeem_point_coupon", { p_code: normalized });
+  if (error) throw new Error(error.message);
+  if (!data?.ok) throw new Error(COUPON_ERRORS[data?.error] ?? COUPON_ERRORS.invalid);
+  return { points: Number(data.points ?? 0), balance: Number(data.balance ?? 0) };
+}
+
+const COUPON_COLUMNS =
+  "id, code, points, max_redemptions, redemption_count, expires_at, batch_id, note, active, created_at";
+
+export async function adminListCoupons() {
+  const { data, error } = await getSupabase()
+    .from("point_coupons")
+    .select(COUPON_COLUMNS)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw new Error(friendlyAdminError(error.message));
+  return data ?? [];
+}
+
+/**
+ * Create one custom code or a batch of generated ones.
+ * { points, quantity, code?, maxRedemptions (null = unlimited), expiresAt?, note? }
+ */
+export async function adminCreateCoupons({ points, quantity = 1, code, maxRedemptions = 1, expiresAt = null, note = "" }) {
+  const user = await getUser();
+  const batchId = crypto.randomUUID();
+  const custom = code ? normalizeCouponCode(code) : "";
+  const rows = [];
+  const seen = new Set();
+  while (rows.length < quantity) {
+    const next = custom || generateCouponCode();
+    if (seen.has(next)) continue;
+    seen.add(next);
+    rows.push({
+      code: next,
+      points,
+      max_redemptions: maxRedemptions,
+      expires_at: expiresAt,
+      batch_id: batchId,
+      note: note || null,
+      created_by: user?.id ?? null,
+      active: true,
+    });
+  }
+  const { data, error } = await getSupabase().from("point_coupons").insert(rows).select(COUPON_COLUMNS);
+  if (error) {
+    if (/duplicate key|unique/i.test(error.message)) throw new Error("That code is already in use.");
+    throw new Error(friendlyAdminError(error.message));
+  }
+  return { batchId, coupons: data ?? [] };
+}
+
+export async function adminUpdateCoupon(id, patch) {
+  const { data, error } = await getSupabase()
+    .from("point_coupons")
+    .update(patch)
+    .eq("id", id)
+    .select(COUPON_COLUMNS)
+    .single();
+  if (error) throw new Error(friendlyAdminError(error.message));
+  return data;
+}

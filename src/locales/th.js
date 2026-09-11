@@ -303,4 +303,15 @@ export const TH = {
   "Payment received. Your points will appear in a moment.":
     "ได้รับการชำระเงินแล้ว แต้มจะเข้าในอีกสักครู่",
   "Could not start checkout.": "เริ่มการชำระเงินไม่ได้",
+  "Have a coupon code?": "มีโค้ดคูปองไหม?",
+  "Coupon code": "โค้ดคูปอง",
+  Redeem: "ใช้โค้ด",
+  "Redeeming…": "กำลังใช้โค้ด…",
+  "{n} points added!": "เติม {n} แต้มแล้ว!",
+  "That coupon code is not valid.": "โค้ดคูปองนี้ใช้ไม่ได้",
+  "This coupon is no longer active.": "คูปองนี้ปิดใช้งานแล้ว",
+  "This coupon has expired.": "คูปองนี้หมดอายุแล้ว",
+  "This coupon has already been fully redeemed.": "คูปองนี้ถูกใช้ครบแล้ว",
+  "You have already redeemed this coupon.": "เราใช้คูปองนี้ไปแล้ว",
+  "Admins only.": "สำหรับผู้ดูแลเท่านั้น",
 };
