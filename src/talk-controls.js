@@ -7,6 +7,7 @@
 // guarded so a widget update that removes those globals only hides the
 // controls while chat keeps working.
 import { attachSurfaceGestures } from "./surface-gestures.js";
+import { attachHoverRub } from "./pet-sounds.js";
 import { t } from "./i18n.js";
 
 export const TALK_ACTIONS = [
@@ -207,13 +208,19 @@ export function renderActionTray(tray, api, pose) {
 const mounted = new WeakSet();
 
 // Idempotent: safe to call every time the widget's DOM changes.
-export function mountTalkControls({ canvas, tray, hint, win }) {
+export function mountTalkControls({ canvas, tray, hint, win, onRub }) {
   if (!canvas || mounted.has(canvas)) return null;
   const api = getAvatarApi(win);
   if (!api) return null;
   mounted.add(canvas);
   const pose = createPoseController(api.group);
   const gestures = attachPoseGestures(canvas, pose, { isAr: api.isAr });
+  const rub = onRub
+    ? attachHoverRub(canvas, {
+        onRub,
+        isEnabled: () => !api.isAr(),
+      })
+    : null;
   if (tray) renderActionTray(tray, api, pose);
   if (hint) hint.hidden = false;
   return {
@@ -221,6 +228,7 @@ export function mountTalkControls({ canvas, tray, hint, win }) {
     pose,
     destroy() {
       gestures.detach();
+      rub?.detach();
       mounted.delete(canvas);
       if (tray) {
         tray.replaceChildren();

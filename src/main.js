@@ -43,6 +43,7 @@ import { attachSurfaceGestures } from "./surface-gestures.js";
 import { localizeChatControls } from "./chat-labels.js";
 import { initPreventPageZoom } from "./prevent-page-zoom.js";
 import { mountTalkControls } from "./talk-controls.js";
+import { ensureSfxLibrary, notePettingMotion, attachHoverRub } from "./pet-sounds.js";
 import {
   BACKGROUNDS,
   normalizeBackgroundId,
@@ -354,6 +355,7 @@ async function loadPetHub() {
   try {
     const pets = await getAllPets();
     renderPetGrid(pets);
+    ensureSfxLibrary();
   } catch (err) {
     petListGrid.innerHTML = `<div class="empty-crew"><p data-i18n="Your browser could not open saved pets. Please allow site storage and reload.">${t("Your browser could not open saved pets. Please allow site storage and reload.")}</p></div>`;
   }
@@ -1876,6 +1878,9 @@ async function initVrm() {
       controls.update();
     },
   });
+  attachHoverRub(vrmCanvas, {
+    onRub: (distance) => notePettingMotion(distance, activePetType),
+  });
 
   function getUvFromRaycast(event) {
     if (!currentVrm || !vrmRaycastProxies.length) return null;
@@ -2469,6 +2474,11 @@ function watchChatSurface(backgroundColor, launchToken) {
         tray: document.querySelector("#talkActionTray"),
         hint: document.querySelector("#talkGestureHint"),
         win: window,
+        onRub: (distance) =>
+          notePettingMotion(
+            distance,
+            activeChatPet?.petType || activePetType,
+          ),
       });
       if (controls) talkControls = controls;
     }
