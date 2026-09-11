@@ -14,7 +14,6 @@ window.ChatWidget.updateConfig(window.ChatWidgetConfig);`,
     }),
   );
 
-// Pets are kept in memory so this spec does not depend on the storage schema.
 const stubPets = (page) => {
   const rows = new Map();
   return page.route("**/rest/v1/pets**", (route) => {
@@ -63,30 +62,23 @@ async function openTalk(page) {
   await expect(page.locator("#chatWidgetContainer canvas")).toBeVisible();
 }
 
-test("talk mode shows one-tap moves and faces that call the widget directly", async ({
+test("talk mode keeps the tray and tip hidden for a clean pet view", async ({
   page,
 }) => {
   await openTalk(page);
-  const tray = page.locator("#talkActionTray");
-  await expect(tray).toBeVisible();
-  await expect(page.locator("#talkGestureHint")).toBeVisible();
-  await tray.getByRole("button", { name: "Wave" }).click();
-  await tray.getByRole("button", { name: "Jump" }).click();
-  await tray.getByRole("button", { name: "Happy" }).click();
-  expect(await page.evaluate(() => window.played)).toEqual(["Waving", "Jump"]);
-  expect(await page.evaluate(() => window.emotions)).toEqual(["happy"]);
-  const talkNav = page.locator("#talkScreen .talk-nav");
-  await talkNav.getByRole("button", { name: "ไทย", exact: true }).click();
-  await expect(tray.getByRole("button", { name: "โบกมือ" })).toBeVisible();
-  await talkNav.getByRole("button", { name: "English", exact: true }).click();
+  await expect(page.locator("#talkActionTray")).toBeHidden();
+  await expect(page.locator("#talkGestureHint")).toBeHidden();
+  await expect(page.locator("#chatWidgetContainer")).toHaveCSS(
+    "background-image",
+    /indoor_house|url\(/,
+  );
 });
 
-test("holding and dragging spins the pet; wheel, size chips and reset work", async ({
+test("holding and dragging spins the pet; wheel zooms and double-click resets", async ({
   page,
 }) => {
   await openTalk(page);
   const canvas = page.locator("#chatWidgetContainer canvas");
-  const tray = page.locator("#talkActionTray");
   const box = await canvas.boundingBox();
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
@@ -117,15 +109,9 @@ test("holding and dragging spins the pet; wheel, size chips and reset work", asy
   await page.mouse.wheel(0, -300);
   g = await group();
   expect(g.s).toBeGreaterThan(1);
-  await tray.getByRole("button", { name: "Smaller" }).click();
-  await tray.getByRole("button", { name: "Smaller" }).click();
-  await tray.getByRole("button", { name: "Smaller" }).click();
-  g = await group();
-  expect(g.s).toBeLessThan(1);
-  await tray.getByRole("button", { name: "Bigger" }).click();
-  await tray.getByRole("button", { name: "Reset view" }).click();
+  await page.mouse.dblclick(cx, cy);
   g = await group();
   expect(g).toEqual({ r: 0, x: 0, y: 0, s: 1 });
   await page.locator("#exitTalkBtn").click();
-  await expect(page.locator("#talkActionTray")).toBeHidden();
+  await expect(page.locator("#talkScreen")).toBeHidden();
 });

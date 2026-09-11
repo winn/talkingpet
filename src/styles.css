@@ -2437,6 +2437,15 @@ input[type="color"]::-webkit-color-swatch {
 #talkScreen #bcw-rt-expand-wrap {
   display: none !important;
 }
+/* Clean Talk view: no move/face tray or gesture tip over the pet. */
+#talkScreen #talkActionTray,
+#talkScreen #talkGestureHint {
+  display: none !important;
+}
+#talkScreen #chatWidgetContainer,
+#talkScreen #chatWidgetContainer canvas {
+  background-color: transparent !important;
+}
 
 .sheet-panel > .stamp-actions {
   bottom: 16px;

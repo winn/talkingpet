@@ -42,7 +42,7 @@ import {
 import { attachSurfaceGestures } from "./surface-gestures.js";
 import { localizeChatControls } from "./chat-labels.js";
 import { initPreventPageZoom } from "./prevent-page-zoom.js";
-import { mountTalkControls, renderActionTray, getAvatarApi } from "./talk-controls.js";
+import { mountTalkControls } from "./talk-controls.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
 import {
   BACKGROUNDS,
@@ -50,6 +50,7 @@ import {
   normalizeBackgroundId,
   resolveBackgroundId,
   applyBackdrop,
+  applyTalkSceneBackdrop,
 } from "./backgrounds.js";
 
 // Prevent mobile browser page zoom while preserving canvas pinch gestures
@@ -695,9 +696,7 @@ export async function launchPetChat(pet) {
   activeChatPet = pet;
   const backgroundColor = normalizeBackground(pet.backgroundColor);
   const backgroundId = resolveBackgroundId(pet.backgroundId);
-  const widgetBackground = backgroundId ? "transparent" : backgroundColor;
   talkScreen.style.setProperty("--talk-background", backgroundColor);
-  talkScreen.style.backgroundColor = backgroundColor;
   applyBackdrop(talkScreen, backgroundColor, backgroundId);
   applyBackdrop(
     document.querySelector("#chatWidgetContainer"),
@@ -729,7 +728,7 @@ export async function launchPetChat(pet) {
     avatarUrl: vrmBlobUrl,
     greetingInstruction: greeting,
     container: "#chatWidgetContainer",
-    backgroundColor: widgetBackground,
+    backgroundColor: "transparent",
   };
 
   if (
@@ -741,9 +740,9 @@ export async function launchPetChat(pet) {
         widgetId: config.widgetId,
         avatarUrl: vrmBlobUrl,
         greetingInstruction: greeting,
-        backgroundColor: widgetBackground,
+        backgroundColor: "transparent",
       });
-      watchChatSurface(backgroundColor, launchToken);
+      watchChatSurface(backgroundColor, backgroundId, launchToken);
       return;
     } catch (err) {
       console.warn("[PaintMomo] updateConfig error, reloading script:", err);
@@ -759,7 +758,7 @@ export async function launchPetChat(pet) {
   s.id = "webavatar-jssdk";
   s.src = "https://webavatar.didthat.cc/chat-widget.js";
   s.async = true;
-  s.onload = () => watchChatSurface(backgroundColor, launchToken);
+  s.onload = () => watchChatSurface(backgroundColor, backgroundId, launchToken);
   s.onerror = () => {
     if (launchToken !== chatLaunchToken) return;
     localizeText(
@@ -2469,14 +2468,20 @@ function initStudioExtras() {
     }
   });
 }
-function watchChatSurface(backgroundColor, launchToken) {
+function watchChatSurface(backgroundColor, backgroundId, launchToken) {
   chatThemeObserver?.disconnect();
   const container = document.querySelector("#chatWidgetContainer");
   const status = document.querySelector("#chatStatus");
+  const roomId = resolveBackgroundId(backgroundId);
+  const paintBackdrop = () => {
+    applyBackdrop(talkScreen, backgroundColor, roomId);
+    applyBackdrop(container, backgroundColor, roomId);
+    applyTalkSceneBackdrop(window, roomId, THREE);
+  };
   const update = () => {
     if (launchToken !== chatLaunchToken) return;
-    // Only inspect the rendered UI. The hosted widget's source is kept opaque.
     localizeChatControls(container);
+    paintBackdrop();
     const canvas = container.querySelector("canvas");
     if (canvas) {
       localizeText(status, "");
@@ -2487,12 +2492,11 @@ function watchChatSurface(backgroundColor, launchToken) {
       const controls = mountTalkControls({
         canvas,
         surface: container,
-        tray: document.querySelector("#talkActionTray"),
-        hint: document.querySelector("#talkGestureHint"),
         win: window,
         getPetType: () => activeChatPet?.petType || activePetType,
       });
       if (controls) talkControls = controls;
+      paintBackdrop();
     }
   };
   chatThemeObserver = new MutationObserver(update);
@@ -2501,7 +2505,7 @@ function watchChatSurface(backgroundColor, launchToken) {
     subtree: true,
     characterData: true,
     attributes: true,
-    attributeFilter: ["aria-label", "title", "placeholder"],
+    attributeFilter: ["aria-label", "title", "placeholder", "style"],
   });
   update();
   setTimeout(() => {
@@ -2529,10 +2533,6 @@ window.addEventListener("languagechange", async () => {
     document.querySelector("#tryPromptBtn").click();
   if (activeChatPet && window.ChatWidgetConfig) {
     localizeChatControls(document.querySelector("#chatWidgetContainer"));
-    const tray = document.querySelector("#talkActionTray");
-    const api = getAvatarApi(window);
-    if (talkControls?.pose && tray && api)
-      renderActionTray(tray, api, talkControls.pose);
     const greetingInstruction = buildChatGreeting(activeChatPet, getLanguage());
     window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
     if (

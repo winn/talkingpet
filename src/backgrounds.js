@@ -41,9 +41,8 @@ export function normalizeBackgroundId(id) {
   return BACKGROUNDS.some((background) => background.id === id) ? id : null;
 }
 
-/** Room image for pets that never chose a backdrop; solid (null) stays solid. */
+/** Always resolve to a room image; solid color alone is no longer used on Talk. */
 export function resolveBackgroundId(id, { fallback = DEFAULT_BACKGROUND_ID } = {}) {
-  if (id === null) return null;
   return normalizeBackgroundId(id) || fallback;
 }
 
@@ -53,4 +52,38 @@ export function applyBackdrop(element, color, id) {
   element.style.backgroundImage = background
     ? `url("${background.url}")`
     : "none";
+}
+
+/** Put the room on the widget's Three.js scene so WebGL does not clear to white. */
+export function applyTalkSceneBackdrop(win, id, THREE) {
+  const background = BACKGROUNDS.find((entry) => entry.id === id);
+  const avatar = win?.WebAvatar;
+  if (!background || !avatar || !THREE?.TextureLoader) return false;
+  let scene = avatar.scene;
+  if (!scene) {
+    let node = avatar.avatarGroup;
+    while (node) {
+      if (node.isScene || node.type === "Scene") {
+        scene = node;
+        break;
+      }
+      node = node.parent;
+    }
+  }
+  if (!scene) return false;
+  const renderer = avatar.renderer || avatar.gl;
+  if (renderer?.setClearColor) renderer.setClearColor(0x000000, 0);
+  if (renderer) renderer.setClearAlpha?.(0);
+  const loader = new THREE.TextureLoader();
+  loader.load(
+    background.url,
+    (texture) => {
+      if (THREE.SRGBColorSpace) texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
+      scene.background = texture;
+    },
+    undefined,
+    () => {},
+  );
+  return true;
 }

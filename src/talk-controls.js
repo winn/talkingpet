@@ -275,8 +275,6 @@ const mounted = new WeakSet();
 export function mountTalkControls({
   canvas,
   surface,
-  tray,
-  hint,
   win,
   getPetType,
 }) {
@@ -300,8 +298,6 @@ export function mountTalkControls({
     isEnabled: () => !api.isAr(),
     onRub: (distance) => notePettingMotion(distance, petType(), petOpts()),
   });
-  if (tray) renderActionTray(tray, api, pose);
-  if (hint) hint.hidden = false;
   return {
     canvas,
     pose,
@@ -309,11 +305,6 @@ export function mountTalkControls({
       gestures.detach();
       rub.detach();
       mounted.delete(canvas);
-      if (tray) {
-        tray.replaceChildren();
-        tray.hidden = true;
-      }
-      if (hint) hint.hidden = true;
     },
   };
 }
