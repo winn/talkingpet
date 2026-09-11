@@ -1,12 +1,12 @@
-// Turns a talk session's transcript into a few short facts the pet should
+// Turns a talk session's transcript into key/value facts the pet should
 // remember about its friend. Gemini does the reading; this module owns the
 // prompt, the response shape, and the merge with what is already known.
 import { GEMINI_URL } from "./audio.js";
+import { normalizeKey, normalizeValue } from "../src/memory-keys.js";
 
 export const MEMORY_LIMITS = {
   maxPerSession: 8,
   maxTotal: 60,
-  maxChars: 200,
   maxTurns: 80,
   maxTurnChars: 400,
 };
@@ -30,41 +30,45 @@ export function normalizeTranscript(raw) {
   return turns.slice(-MEMORY_LIMITS.maxTurns);
 }
 
-export function normalizeMemory(text) {
-  return String(text ?? "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MEMORY_LIMITS.maxChars);
+/** Clean {key, value} or null. */
+export function normalizeMemory(item) {
+  const key = normalizeKey(item?.key);
+  const value = normalizeValue(item?.value);
+  return key && value ? { key, value } : null;
 }
 
-const fingerprint = (text) =>
-  normalizeMemory(text)
-    .toLowerCase()
-    .replace(/[.!?。]+$/g, "")
-    .trim();
-
-/** New facts only: no blanks, no repeats of each other or of what is known. */
+/**
+ * Facts to write: keys that are new, or whose value changed. Repeats within
+ * the proposal collapse to the last one. New keys respect the account cap.
+ */
 export function mergeMemories(existing = [], proposed = []) {
-  const known = new Set(existing.map(fingerprint).filter(Boolean));
-  const room = Math.max(0, MEMORY_LIMITS.maxTotal - existing.length);
-  const limit = Math.min(MEMORY_LIMITS.maxPerSession, room);
-  const fresh = [];
-  for (const candidate of Array.isArray(proposed) ? proposed : []) {
-    if (fresh.length >= limit) break;
-    const content = normalizeMemory(candidate);
-    const key = fingerprint(content);
-    if (!key || known.has(key)) continue;
-    known.add(key);
-    fresh.push(content);
+  const known = new Map();
+  for (const item of existing) {
+    const clean = normalizeMemory(item);
+    if (clean) known.set(clean.key, clean.value.toLowerCase());
   }
-  return fresh;
+  const room = Math.max(0, MEMORY_LIMITS.maxTotal - known.size);
+  const changes = new Map();
+  let added = 0;
+  for (const candidate of Array.isArray(proposed) ? proposed : []) {
+    const clean = normalizeMemory(candidate);
+    if (!clean) continue;
+    if (known.get(clean.key) === clean.value.toLowerCase()) continue;
+    const isNew = !known.has(clean.key) && !changes.has(clean.key);
+    if (isNew && added >= room) continue;
+    if (!changes.has(clean.key) && changes.size >= MEMORY_LIMITS.maxPerSession)
+      continue;
+    if (isNew) added++;
+    changes.set(clean.key, clean.value);
+  }
+  return [...changes].map(([key, value]) => ({ key, value }));
 }
 
 export function memoryInstruction({ petName, language, existing, transcript }) {
   const thai = language === "th";
   const name = petName || (thai ? "เพื่อนสัตว์เลี้ยง" : "the pet");
   const known = existing.length
-    ? existing.map((m) => `- ${m}`).join("\n")
+    ? existing.map((m) => `- ${m.key}: ${m.value}`).join("\n")
     : thai
       ? "(ยังไม่มี)"
       : "(none yet)";
@@ -73,10 +77,11 @@ export function memoryInstruction({ petName, language, existing, transcript }) {
     .join("\n");
   return [
     `You help ${name}, a virtual pet, remember its friend (a child aged 8 or older) between chats.`,
-    "Read the transcript and extract lasting personal facts the friend shared about themselves: their name, birthday, age, favourite foods, colours, games, animals, family, pets, hobbies, or anything they explicitly asked the pet to remember.",
-    "Rules: only facts the friend stated about themselves; ignore small talk, questions, the pet's own words, and anything already in the known facts. Never invent details.",
-    `Write each fact as one short sentence in ${thai ? "Thai" : "English"} from the pet's point of view, under 120 characters, for example: ${thai ? '"เพื่อนของฉันชื่อจอห์น"' : '"My friend\'s name is John."'}`,
-    `Return at most ${MEMORY_LIMITS.maxPerSession} facts. Return an empty list when there is nothing new worth remembering.`,
+    "Read the transcript and extract lasting personal facts the friend shared about themselves, as key/value pairs.",
+    "Keys are short English snake_case labels, reusing these when they fit: name, nickname, birthday, age, favorite_food, favorite_color, favorite_subject, favorite_animal, favorite_game, favorite_song, favorite_place, hobby, pet, family, school, friend, dream, dislike. Invent a similar key only for something else the friend clearly asked the pet to remember.",
+    `Values are short (under 100 characters) in ${thai ? "Thai" : "English"}, for example ${thai ? 'name: "จอห์น", birthday: "19 มีนาคม", favorite_food: "ไอศกรีมชาเขียว"' : 'name: "John", birthday: "19 March", favorite_food: "green tea ice cream"'}.`,
+    "Rules: only facts the friend stated about themselves; ignore small talk, questions, and the pet's own words. Never invent details. Repeat a known key only when its value changed.",
+    `Return at most ${MEMORY_LIMITS.maxPerSession} pairs. Return an empty list when there is nothing new worth remembering.`,
     "",
     "Known facts:",
     known,
@@ -88,11 +93,20 @@ export function memoryInstruction({ petName, language, existing, transcript }) {
 
 const RESPONSE_SCHEMA = {
   type: "object",
-  properties: { memories: { type: "array", items: { type: "string" } } },
+  properties: {
+    memories: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { key: { type: "string" }, value: { type: "string" } },
+        required: ["key", "value"],
+      },
+    },
+  },
   required: ["memories"],
 };
 
-/** Resolves the new facts to store (may be empty). Throws on provider errors. */
+/** Resolves the {key, value} facts to write (may be empty). Throws on provider errors. */
 export async function summarizeMemories({
   apiKey,
   transcript,
@@ -117,7 +131,7 @@ export async function summarizeMemories({
                 text: memoryInstruction({
                   petName,
                   language,
-                  existing,
+                  existing: existing.map(normalizeMemory).filter(Boolean),
                   transcript: turns,
                 }),
               },

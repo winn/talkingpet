@@ -32,33 +32,48 @@ test("transcripts normalise widget history items and {role,text} pairs", async (
   assert.deepEqual(normalizeTranscript("nope"), []);
 });
 
-test("merging keeps only new, distinct facts within the limits", async () => {
+test("merging keeps new keys and changed values within the limits", async () => {
   const { mergeMemories, MEMORY_LIMITS } =
     await import("../server/memories.js");
   const fresh = mergeMemories(
-    ["My friend's name is John."],
+    [{ key: "name", value: "John" }],
     [
-      "my friend's name is John",
-      "  My friend was born on 19 March.  ",
-      "My friend was born on 19 March.",
-      "",
-      "x".repeat(500),
+      { key: "Name", value: "john" },
+      { key: "Birthday ", value: "  19 March " },
+      { key: "birthday", value: "19 March" },
+      { key: "favorite food", value: "green tea ice cream" },
+      { key: "", value: "nothing" },
+      { key: "age", value: "" },
     ],
   );
   assert.deepEqual(fresh, [
-    "My friend was born on 19 March.",
-    "x".repeat(MEMORY_LIMITS.maxChars),
+    { key: "birthday", value: "19 March" },
+    { key: "favorite_food", value: "green tea ice cream" },
   ]);
+  // A changed value for a known key is written; the same value is not.
+  assert.deepEqual(
+    mergeMemories(
+      [{ key: "name", value: "John" }],
+      [{ key: "name", value: "Johnny" }],
+    ),
+    [{ key: "name", value: "Johnny" }],
+  );
   const many = mergeMemories(
     [],
-    Array.from({ length: 20 }, (_, i) => `fact ${i}`),
+    Array.from({ length: 20 }, (_, i) => ({ key: `fact_${i}`, value: "x" })),
   );
   assert.equal(many.length, MEMORY_LIMITS.maxPerSession);
   const full = mergeMemories(
-    Array.from({ length: MEMORY_LIMITS.maxTotal }, (_, i) => `old ${i}`),
-    ["new"],
+    Array.from({ length: MEMORY_LIMITS.maxTotal }, (_, i) => ({
+      key: `old_${i}`,
+      value: "x",
+    })),
+    [
+      { key: "new", value: "y" },
+      { key: "old_1", value: "changed" },
+    ],
   );
-  assert.deepEqual(full, []);
+  assert.deepEqual(full, [{ key: "old_1", value: "changed" }]);
 });
 
 test("summarizeMemories asks Gemini with known facts and returns the merged result", async () => {
@@ -77,8 +92,8 @@ test("summarizeMemories asks Gemini with known facts and returns the merged resu
                 {
                   text: JSON.stringify({
                     memories: [
-                      "My friend's name is John.",
-                      "My friend likes green tea ice cream.",
+                      { key: "name", value: "John" },
+                      { key: "favorite_food", value: "green tea ice cream" },
                     ],
                   }),
                 },
@@ -93,18 +108,20 @@ test("summarizeMemories asks Gemini with known facts and returns the merged resu
     apiKey: "k",
     petName: "Momo",
     language: "en",
-    existing: ["My friend's name is John."],
+    existing: [{ key: "name", value: "John" }],
     transcript: [
       { sender: "user", text: "I'm John and I love green tea ice cream" },
       { sender: "bot", text: "Yum!" },
     ],
     fetchImpl,
   });
-  assert.deepEqual(added, ["My friend likes green tea ice cream."]);
+  assert.deepEqual(added, [
+    { key: "favorite_food", value: "green tea ice cream" },
+  ]);
   assert.match(calls[0][0], /generativelanguage\.googleapis\.com/);
   assert.equal(calls[0][2]["x-goog-api-key"], "k");
   const prompt = calls[0][1].contents[0].parts[0].text;
-  assert.match(prompt, /Known facts:\n- My friend's name is John\./);
+  assert.match(prompt, /Known facts:\n- name: John/);
   assert.match(
     prompt,
     /Friend: I'm John and I love green tea ice cream\nMomo: Yum!/,
@@ -112,6 +129,11 @@ test("summarizeMemories asks Gemini with known facts and returns the merged resu
   assert.equal(
     calls[0][1].generationConfig.responseMimeType,
     "application/json",
+  );
+  assert.equal(
+    calls[0][1].generationConfig.responseSchema.properties.memories.items
+      .required.length,
+    2,
   );
 
   // Nothing from the friend means nothing to ask about.
@@ -156,6 +178,20 @@ test("summarizeMemories asks Gemini with known facts and returns the merged resu
     }),
     /gemini_unreachable/,
   );
+});
+
+test("memory keys normalise to snake_case and get readable labels", async () => {
+  const { normalizeKey, normalizeValue, keyLabel } =
+    await import("../src/memory-keys.js");
+  assert.equal(normalizeKey("  Favorite Food! "), "favorite_food");
+  assert.equal(normalizeKey("วิชาโปรด"), "วิชาโปรด");
+  assert.equal(normalizeKey("___"), "");
+  assert.equal(normalizeKey("x".repeat(100)).length, 60);
+  assert.equal(normalizeValue("  19   March  "), "19 March");
+  assert.equal(keyLabel("favorite_food", "en"), "Favorite food");
+  assert.equal(keyLabel("favorite_food", "th"), "อาหารโปรด");
+  assert.equal(keyLabel("best_friend_name", "th"), "Best friend name");
+  assert.equal(keyLabel("", "en"), "");
 });
 
 test("the browser reads only this session's turns from the widget's stored history", async () => {
@@ -217,26 +253,27 @@ test("chat instructions carry the memories in the chosen language", async () => 
     personalityPrompt: "Friendly.",
   };
   const memories = [
-    { content: "My friend's name is John." },
-    "My friend likes green tea ice cream.",
+    { key: "name", value: "John" },
+    { key: "favorite_food", value: "green tea ice cream" },
+    "Legacy free-text fact.",
   ];
   const en = buildChatGreeting(pet, "en", memories);
   assert.match(
     en,
-    /Things you remember about your friend from earlier chats:\n- My friend's name is John\.\n- My friend likes green tea ice cream\./,
+    /Things you remember about your friend from earlier chats:\n- name: John\n- favorite food: green tea ice cream\n- Legacy free-text fact\./,
   );
   assert.match(en, /say happily that you will/);
   const th = buildChatGreeting(pet, "th", memories);
   assert.match(
     th,
-    /สิ่งที่เธอจำได้เกี่ยวกับเพื่อนจากการคุยครั้งก่อน:\n- My friend's name is John\./,
+    /สิ่งที่เธอจำได้เกี่ยวกับเพื่อนจากการคุยครั้งก่อน:\n- name: John/,
   );
   assert.match(
     memoryInstructions([], "en"),
     /^If your friend asks you to remember something/,
   );
   assert.ok(
-    !memoryInstructions([{ content: "  " }], "en").includes(
+    !memoryInstructions([{ key: "name", value: "  " }], "en").includes(
       "Things you remember",
     ),
   );

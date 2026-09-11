@@ -18,11 +18,33 @@ export async function listMemories() {
   if (!session?.user) return [];
   const { data, error } = await getSupabase()
     .from(TABLE)
-    .select("id, content, pet_name, created_at")
+    .select("id, key, value, pet_name, created_at")
     .eq("user_id", session.user.id)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+/** Add or replace one fact by hand. Resolves the stored row. */
+export async function saveMemory({ key, value, petName = null }) {
+  const session = await getSession();
+  if (!session?.user) throw new Error("Sign in first.");
+  const { data, error } = await getSupabase()
+    .from(TABLE)
+    .upsert(
+      {
+        user_id: session.user.id,
+        key,
+        value,
+        pet_name: petName,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,key" },
+    )
+    .select("id, key, value, pet_name, created_at")
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function deleteMemory(id) {

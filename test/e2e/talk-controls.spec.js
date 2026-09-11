@@ -114,17 +114,19 @@ test("talk swaps the widget's AR toggle for a Settings button that changes langu
   await expect(page.locator("#talkScreen")).toBeHidden();
 });
 
-test("leaving talk gets the chat remembered, the next chat knows it, and memories can be forgotten", async ({
+test("leaving talk gets the chat remembered; memory can be viewed, added and forgotten from Settings", async ({
   page,
 }) => {
   const memories = new Map();
   const summaries = [];
+  const upserts = [];
   await page.route("**/api/memories/summarize", async (route) => {
     const body = JSON.parse(route.request().postData() || "{}");
     summaries.push(body);
     const added = {
       id: "m1",
-      content: "My friend's name is John.",
+      key: "name",
+      value: "John",
       pet_name: body.petName,
       created_at: "2026-09-11T00:00:00Z",
     };
@@ -132,10 +134,24 @@ test("leaving talk gets the chat remembered, the next chat knows it, and memorie
     await route.fulfill({ json: { added: [added] } });
   });
   await page.route("**/rest/v1/user_memories**", (route) => {
-    const method = route.request().method();
+    const request = route.request();
+    const method = request.method();
     if (method === "GET") return route.fulfill({ json: [...memories.values()] });
+    if (method === "POST") {
+      const body = JSON.parse(request.postData() || "{}");
+      upserts.push({ body, prefer: request.headers().prefer || "" });
+      const row = {
+        id: `manual-${upserts.length}`,
+        key: body.key,
+        value: body.value,
+        pet_name: body.pet_name ?? null,
+        created_at: "2026-09-12T00:00:00Z",
+      };
+      memories.set(row.id, row);
+      return route.fulfill({ status: 201, json: row });
+    }
     if (method === "DELETE") {
-      const id = new URL(route.request().url()).searchParams.get("id");
+      const id = new URL(request.url()).searchParams.get("id");
       if (id) memories.delete(id.replace(/^eq\./, ""));
       else memories.clear();
       return route.fulfill({ status: 204, body: "" });
@@ -172,28 +188,60 @@ test("leaving talk gets the chat remembered, the next chat knows it, and memorie
     ],
   });
 
-  // The next chat is told what the pet remembers.
+  // The next chat is told what the pet remembers, as key: value lines.
   await page.getByRole("button", { name: "Talk to Momo", exact: true }).click();
   await expect(page.locator("#chatWidgetContainer canvas")).toBeVisible();
   expect(await page.evaluate(() => window.ChatWidgetConfig.greetingInstruction)).toMatch(
-    /Things you remember about your friend from earlier chats:\n- My friend's name is John\./,
+    /Things you remember about your friend from earlier chats:\n- name: John/,
   );
+
+  // Settings → Memory opens the table over the pet.
+  await page.locator("#talkSettingsBtn").click();
+  await page.locator("#talkMemoryBtn").click();
+  const modal = page.locator("#memoryModal");
+  await expect(modal).toBeVisible();
+  await expect(page.locator("#memoryTitle")).toHaveText("What Momo remembers");
+  const rows = page.locator("#memoryRows tr");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("Name");
+  await expect(rows.first()).toContainText("John");
+  await expect(rows.first()).toContainText("from Momo");
+
+  // Adding by hand stores a snake_case key and updates the current chat's instructions.
+  await page.locator("#memoryKey").fill("Favorite subject");
+  await page.locator("#memoryValue").fill("  Science  ");
+  await page.locator("#memoryAddBtn").click();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText("Favorite subject");
+  await expect(rows.first()).toContainText("Science");
+  expect(upserts[0].body).toMatchObject({ key: "favorite_subject", value: "Science" });
+  expect(upserts[0].prefer).toContain("resolution=merge-duplicates");
+  await expect
+    .poll(() => page.evaluate(() => window.ChatWidgetConfig.greetingInstruction))
+    .toMatch(/- favorite subject: Science\n- name: John/);
+  await expect(page.locator("#memoryKey")).toHaveValue("");
+
+  // Forgetting one, then everything.
+  await rows.first().getByRole("button", { name: "Forget this memory" }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("John");
+  await page.locator("#forgetAllBtn").click();
+  await expect(rows).toHaveCount(0);
+  await expect(page.locator("#memoryEmpty")).toBeVisible();
+  await expect(page.locator("#forgetAllBtn")).toBeHidden();
+  expect(memories.size).toBe(0);
+  await page.keyboard.press("Escape");
+  await expect(modal).toBeHidden();
   await page.locator("#exitTalkBtn").click();
   await expect(page.locator("#petHubScreen")).toBeVisible();
   expect(summaries).toHaveLength(1);
 
-  // The account sheet lists memories and can forget them.
+  // The account sheet reaches the same table.
   await page.locator("#accountBtn").click();
-  const row = page.locator("#memoryList .memory-row");
-  await expect(row).toHaveCount(1);
-  await expect(row).toContainText("My friend's name is John.");
-  await expect(row).toContainText("from Momo");
-  await expect(page.locator("#forgetAllBtn")).toBeVisible();
-  await row.getByRole("button", { name: "Forget this memory" }).click();
-  await expect(page.locator("#memoryList .memory-row")).toHaveCount(0);
-  await expect(page.locator("#memoryList")).toContainText("Nothing remembered yet");
-  await expect(page.locator("#forgetAllBtn")).toBeHidden();
-  expect(memories.size).toBe(0);
+  await page.locator("#accountMemoryBtn").click();
+  await expect(modal).toBeVisible();
+  await expect(page.locator("#memoryTitle")).toHaveText("What your pets remember");
+  await expect(page.locator("#memoryEmpty")).toBeVisible();
 });
 
 test("holding and dragging spins the pet; wheel zooms and double-click resets", async ({

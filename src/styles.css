@@ -3705,40 +3705,113 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   font-size: 13px;
   color: var(--muted);
 }
-.memory-list {
+.memory-card {
+  width: min(560px, 100%);
   display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.memory-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  border-radius: 16px;
+  text-align: left;
+}
+.memory-card h2 {
+  margin: 0;
+  padding-right: 36px;
+}
+.memory-table-wrap {
+  max-height: min(44vh, 360px);
+  overflow: auto;
   border: 1px solid var(--line);
+  border-radius: 16px;
   background: #fffefb;
 }
-.memory-row p {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
+.memory-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 14px;
+}
+.memory-table th,
+.memory-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
   overflow-wrap: anywhere;
 }
-.memory-row small {
+.memory-table thead th {
+  position: sticky;
+  top: 0;
+  background: #fdf6ec;
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.memory-table tbody th {
+  width: 34%;
+  font-weight: 800;
+}
+.memory-table td small {
   display: block;
   margin-top: 2px;
   font-size: 12px;
   color: var(--muted);
 }
+.memory-table tr:last-child th,
+.memory-table tr:last-child td {
+  border-bottom: 0;
+}
+.memory-actions {
+  width: 1%;
+  white-space: nowrap;
+}
 .memory-forget {
   min-height: 36px;
-  padding: 6px 12px;
+  padding: 6px 10px;
+}
+.memory-empty {
+  padding: 16px;
+}
+.memory-add {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  gap: 8px;
+}
+.memory-add input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: inherit;
+}
+.memory-footer {
+  justify-content: flex-start;
+  margin: 0;
+}
+.talk-settings-panel {
+  flex-direction: column;
+  align-items: stretch;
+}
+.talk-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.talk-memory-button {
+  min-height: 44px;
+  width: 100%;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .memory-add {
+    grid-template-columns: 1fr;
+  }
 }
 .coupon-section {
   margin-top: 22px;

@@ -45,6 +45,11 @@ import { initPreventPageZoom } from "./prevent-page-zoom.js";
 import { mountTalkControls } from "./talk-controls.js";
 import { mountTalkSettings } from "./talk-settings.js";
 import {
+  getMemories,
+  initMemoryPanel,
+  openMemorySheet,
+} from "./memory-panel.js";
+import {
   listMemories,
   readWidgetHistory,
   readWidgetStoreHistory,
@@ -2386,6 +2391,7 @@ function initStudioExtras() {
     }
   });
   const modalLayers = [
+    document.querySelector("#memoryModal"),
     deleteModal,
     document.querySelector("#leaveModal"),
     savingOverlay,
@@ -2565,6 +2571,33 @@ localizeText(
 localizeText(userNameDisplay, "{name}'s Studio", { name: currentPetName });
 initLanguageControls();
 renderPromptRecipe();
+// The memory sheet opens from the Talk settings panel; edits there reach the
+// current chat's instructions right away, without waiting for the next talk.
+initMemoryPanel({ notify });
+document.addEventListener("click", (event) => {
+  if (event.target.closest("#talkMemoryBtn"))
+    openMemorySheet({ petName: activeChatPet?.name || "" });
+});
+window.addEventListener("memorieschange", async () => {
+  activeMemories = getMemories();
+  if (!activeChatPet || !window.ChatWidgetConfig) return;
+  const greetingInstruction = buildChatGreeting(
+    activeChatPet,
+    getLanguage(),
+    activeMemories,
+  );
+  window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
+  if (typeof window.ChatWidget?.updateConfig === "function") {
+    try {
+      await window.ChatWidget.updateConfig({
+        ...window.ChatWidgetConfig,
+        greetingInstruction,
+      });
+    } catch (err) {
+      console.warn("[PaintMomo] updateConfig memory update error:", err);
+    }
+  }
+});
 // Closing the tab mid-talk still gets the session remembered (keepalive fetch).
 window.addEventListener("pagehide", () => {
   if (!activeChatPet) return;

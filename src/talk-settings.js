@@ -1,8 +1,9 @@
 // Talk-mode Settings button, layered into the hosted chat widget's control
 // column in the slot its AR toggle used to occupy. It opens a small panel with
-// the English / Thai switch; the existing document-level language controls
-// (see i18n.js) handle the actual switch, so this file only owns the markup
-// and open/close state. Nothing here reads or changes the widget's source.
+// the English / Thai switch and a Memory button; the existing document-level
+// language controls (see i18n.js) handle the switch and main.js opens the
+// memory sheet, so this file only owns the markup and open/close state.
+// Nothing here reads or changes the widget's source.
 import { applyTranslations } from "./i18n.js";
 
 export const SETTINGS_WRAP_ID = "talkSettingsWrap";
@@ -17,12 +18,17 @@ function buildWrap(doc) {
   wrap.innerHTML = `
     <div id="${SETTINGS_PANEL_ID}" class="talk-settings-panel" role="dialog"
       aria-label="Settings" data-i18n-aria-label="Settings" hidden>
-      <span class="talk-settings-label" data-i18n="Language">Language</span>
-      <div class="language-switch" role="group" aria-label="Language"
-        data-i18n-aria-label="Language">
-        <button type="button" data-language="en" lang="en" aria-pressed="true">English</button
-        ><button type="button" data-language="th" lang="th" aria-pressed="false">ไทย</button>
+      <div class="talk-settings-row">
+        <span class="talk-settings-label" data-i18n="Language">Language</span>
+        <div class="language-switch" role="group" aria-label="Language"
+          data-i18n-aria-label="Language">
+          <button type="button" data-language="en" lang="en" aria-pressed="true">English</button
+          ><button type="button" data-language="th" lang="th" aria-pressed="false">ไทย</button>
+        </div>
       </div>
+      <button type="button" id="talkMemoryBtn" class="secondary talk-memory-button">
+        <span aria-hidden="true">🧠</span> <span data-i18n="Memory">Memory</span>
+      </button>
     </div>
     <button type="button" id="${SETTINGS_BUTTON_ID}"
       class="bcw-rt-btn bcw-rt-btn-secondary talk-settings-button"

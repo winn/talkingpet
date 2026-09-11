@@ -227,8 +227,14 @@ export function samplePrompt(name, recipe, language = "en") {
 }
 export function memoryInstructions(memories = [], language = "en") {
   const facts = (Array.isArray(memories) ? memories : [])
-    .map((m) => (typeof m === "string" ? m : m?.content))
-    .map((text) => String(text ?? "").trim())
+    .map((m) => {
+      if (typeof m === "string") return m.trim();
+      const key = String(m?.key ?? "")
+        .trim()
+        .replace(/_/g, " ");
+      const value = String(m?.value ?? m?.content ?? "").trim();
+      return value ? (key ? `${key}: ${value}` : value) : "";
+    })
     .filter(Boolean);
   const remind =
     language === "th"

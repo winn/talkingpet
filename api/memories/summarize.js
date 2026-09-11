@@ -15,7 +15,7 @@ export const config = { maxDuration: 60 };
 /**
  * POST /api/memories/summarize
  * { petId?, petName?, language?, transcript: [{ role|sender, text }] }
- * → { added: [{ id, content, pet_name, created_at }] }
+ * → { added: [{ id, key, value, pet_name, created_at }] }
  *
  * Called by the browser when a talk session ends. Reads the caller's existing
  * memories, asks Gemini for new facts, stores them for the caller only.
@@ -45,11 +45,11 @@ export async function POST(request) {
 
   const { data: rows, error: readError } = await service
     .from("user_memories")
-    .select("content")
+    .select("key, value")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
   if (readError) return jsonError("db", readError.message, 500);
-  const existing = (rows ?? []).map((r) => r.content);
+  const existing = rows ?? [];
 
   let apiKey;
   try {
@@ -74,15 +74,18 @@ export async function POST(request) {
     if (!memories.length) return json({ added: [] });
     const { data: added, error: writeError } = await service
       .from("user_memories")
-      .insert(
-        memories.map((content) => ({
+      .upsert(
+        memories.map(({ key, value }) => ({
           user_id: user.id,
-          content,
+          key,
+          value,
           pet_id: petId,
           pet_name: petName || null,
+          updated_at: new Date().toISOString(),
         })),
+        { onConflict: "user_id,key" },
       )
-      .select("id, content, pet_name, created_at");
+      .select("id, key, value, pet_name, created_at");
     if (writeError) return jsonError("db", writeError.message, 500);
     return json({ added: added ?? [] });
   } catch (err) {

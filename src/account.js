@@ -1,4 +1,4 @@
-import { deleteAllMemories, deleteMemory, listMemories } from "./memories.js";
+import { openMemorySheet } from "./memory-panel.js";
 import {
   AI_PROVIDERS,
   TALK_COST,
@@ -163,7 +163,6 @@ export function openAccountSheet(notice = null) {
   show(modal);
   modal.classList.add("grid");
   loadPacks();
-  loadMemories();
 }
 
 export function closeAccountSheet() {
@@ -336,77 +335,6 @@ function renderAccountSheet() {
   $("#openAdminBtn").hidden = !profile.isAdmin;
 }
 
-let memoriesCache = [];
-
-async function loadMemories() {
-  try {
-    memoriesCache = await listMemories();
-  } catch {
-    memoriesCache = [];
-  }
-  renderMemoryList();
-}
-
-function renderMemoryList() {
-  const list = $("#memoryList");
-  const forgetAll = $("#forgetAllBtn");
-  if (!list) return;
-  forgetAll.hidden = memoriesCache.length === 0;
-  if (memoriesCache.length === 0) {
-    list.innerHTML = `<li class="memory-empty" data-i18n="Nothing remembered yet. Tell your pet about yourself!">${escapeHtml(
-      t("Nothing remembered yet. Tell your pet about yourself!"),
-    )}</li>`;
-    return;
-  }
-  list.innerHTML = memoriesCache
-    .map(
-      (memory) => `<li class="memory-row" data-memory-id="${escapeHtml(memory.id)}">
-        <p>${escapeHtml(memory.content)}${
-          memory.pet_name
-            ? `<small data-i18n="from {name}" data-i18n-params='${escapeHtml(
-                JSON.stringify({ name: memory.pet_name }),
-              )}'>${escapeHtml(t("from {name}", { name: memory.pet_name }))}</small>`
-            : ""
-        }</p>
-        <button type="button" class="secondary memory-forget" data-forget="${escapeHtml(
-          memory.id,
-        )}" aria-label="${escapeHtml(t("Forget this memory"))}" data-i18n-aria-label="Forget this memory">
-          <span data-i18n="Forget">${escapeHtml(t("Forget"))}</span>
-        </button>
-      </li>`,
-    )
-    .join("");
-}
-
-async function forgetMemory(id) {
-  const button = $(`[data-forget="${CSS.escape(id)}"]`);
-  if (button) button.disabled = true;
-  try {
-    await deleteMemory(id);
-    memoriesCache = memoriesCache.filter((memory) => memory.id !== id);
-    renderMemoryList();
-  } catch (err) {
-    if (button) button.disabled = false;
-    hooks.notify("Could not forget that. Please try again.");
-    console.error("[PaintMomo] forget memory failed:", err);
-  }
-}
-
-async function forgetAllMemories() {
-  const button = $("#forgetAllBtn");
-  button.disabled = true;
-  try {
-    await deleteAllMemories();
-    memoriesCache = [];
-    renderMemoryList();
-  } catch (err) {
-    hooks.notify("Could not forget that. Please try again.");
-    console.error("[PaintMomo] forget all memories failed:", err);
-  } finally {
-    button.disabled = false;
-  }
-}
-
 let packsCache = null;
 
 async function loadPacks() {
@@ -449,11 +377,7 @@ function bindAccountSheet() {
   $("#pointsBadge").addEventListener("click", () => openAccountSheet());
   $("#accountBtn").addEventListener("click", () => openAccountSheet());
   $("#closeAccountBtn").addEventListener("click", closeAccountSheet);
-  $("#memoryList").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-forget]");
-    if (button) forgetMemory(button.dataset.forget);
-  });
-  $("#forgetAllBtn").addEventListener("click", forgetAllMemories);
+  $("#accountMemoryBtn").addEventListener("click", () => openMemorySheet());
   $("#accountModal").addEventListener("click", (event) => {
     if (event.target === event.currentTarget) closeAccountSheet();
   });

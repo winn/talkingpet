@@ -1384,14 +1384,14 @@
           <h3><span data-i18n="What your pets remember">What your pets remember</span></h3>
           <p class="memory-hint">
             <span
-              data-i18n="After each chat, your pet keeps a few things you told it. Forget anything you don't want kept."
-              >After each chat, your pet keeps a few things you told it. Forget
-              anything you don't want kept.</span
+              data-i18n="After each chat, your pet keeps a few things you told it. Look through them, add your own, or forget any."
+              >After each chat, your pet keeps a few things you told it. Look
+              through them, add your own, or forget any.</span
             >
           </p>
-          <ul id="memoryList" class="memory-list" aria-live="polite"></ul>
-          <button id="forgetAllBtn" type="button" class="text-button" hidden>
-            <span data-i18n="Forget everything">Forget everything</span>
+          <button id="accountMemoryBtn" type="button" class="secondary">
+            <span aria-hidden="true">🧠</span>
+            <span data-i18n="Open memory">Open memory</span>
           </button>
         </section>
         <div class="account-actions">
@@ -1400,6 +1400,84 @@
           </button>
           <button id="signOutBtn" type="button" class="text-button">
             <span data-i18n="Sign out">Sign out</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      id="memoryModal"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="memoryTitle"
+    >
+      <div class="dialog-card memory-card">
+        <button
+          id="closeMemoryBtn"
+          type="button"
+          class="close-x"
+          aria-label="Close"
+          data-i18n-aria-label="Close"
+        >
+          ×
+        </button>
+        <h2 id="memoryTitle">
+          <span data-i18n="What your pets remember">What your pets remember</span>
+        </h2>
+        <p class="memory-hint">
+          <span
+            data-i18n="Collected from your chats. Add your own, or forget anything you don't want kept."
+            >Collected from your chats. Add your own, or forget anything you
+            don't want kept.</span
+          >
+        </p>
+        <div class="memory-table-wrap">
+          <table class="memory-table">
+            <thead>
+              <tr>
+                <th scope="col"><span data-i18n="What">What</span></th>
+                <th scope="col"><span data-i18n="Details">Details</span></th>
+                <th scope="col"><span class="sr-only" data-i18n="Actions">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody id="memoryRows" aria-live="polite"></tbody>
+          </table>
+          <p id="memoryEmpty" class="memory-empty" hidden>
+            <span data-i18n="Nothing remembered yet. Tell your pet about yourself!"
+              >Nothing remembered yet. Tell your pet about yourself!</span
+            >
+          </p>
+        </div>
+        <form id="memoryAddForm" class="memory-add">
+          <input
+            id="memoryKey"
+            type="text"
+            autocomplete="off"
+            maxlength="60"
+            placeholder="e.g. birthday"
+            aria-label="What"
+            data-i18n-placeholder="e.g. birthday"
+            data-i18n-aria-label="What"
+            required
+          />
+          <input
+            id="memoryValue"
+            type="text"
+            autocomplete="off"
+            maxlength="200"
+            placeholder="e.g. 19 March"
+            aria-label="Details"
+            data-i18n-placeholder="e.g. 19 March"
+            data-i18n-aria-label="Details"
+            required
+          />
+          <button id="memoryAddBtn" type="submit" class="secondary">
+            <span data-i18n="Add">Add</span>
+          </button>
+        </form>
+        <div class="dialog-actions memory-footer">
+          <button id="forgetAllBtn" type="button" class="text-button" hidden>
+            <span data-i18n="Forget everything">Forget everything</span>
           </button>
         </div>
       </div>

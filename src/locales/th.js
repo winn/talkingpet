@@ -289,8 +289,20 @@ export const TH = {
   Soon: "เร็วๆ นี้",
   "No point packs yet.": "ยังไม่มีแพ็กแต้ม",
   "What your pets remember": "สิ่งที่เพื่อนจำได้",
-  "After each chat, your pet keeps a few things you told it. Forget anything you don't want kept.":
-    "หลังคุยกันแต่ละครั้ง เพื่อนจะจำเรื่องที่เราเล่าให้ฟังไว้ กดลืมเรื่องที่ไม่อยากให้จำได้เลย",
+  "After each chat, your pet keeps a few things you told it. Look through them, add your own, or forget any.":
+    "หลังคุยกันแต่ละครั้ง เพื่อนจะจำเรื่องที่เราเล่าให้ฟังไว้ เปิดดู เพิ่มเอง หรือกดลืมได้เลย",
+  "Collected from your chats. Add your own, or forget anything you don't want kept.":
+    "เก็บมาจากการคุยกัน เพิ่มเองได้ หรือกดลืมเรื่องที่ไม่อยากให้จำ",
+  Memory: "ความทรงจำ",
+  "Open memory": "เปิดความทรงจำ",
+  "What {name} remembers": "สิ่งที่ {name} จำได้",
+  What: "เรื่อง",
+  Details: "รายละเอียด",
+  Actions: "จัดการ",
+  Add: "เพิ่ม",
+  "e.g. birthday": "เช่น วันเกิด",
+  "e.g. 19 March": "เช่น 19 มีนาคม",
+  "Could not save that. Please try again.": "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง",
   "Nothing remembered yet. Tell your pet about yourself!":
     "ยังไม่มีอะไรให้จำ ลองเล่าเรื่องตัวเองให้เพื่อนฟังสิ!",
   "from {name}": "จาก {name}",
