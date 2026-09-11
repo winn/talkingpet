@@ -2482,11 +2482,7 @@ function watchChatSurface(backgroundColor, launchToken) {
         tray: document.querySelector("#talkActionTray"),
         hint: document.querySelector("#talkGestureHint"),
         win: window,
-        onRub: (distance) =>
-          notePettingMotion(
-            distance,
-            activeChatPet?.petType || activePetType,
-          ),
+        getPetType: () => activeChatPet?.petType || activePetType,
       });
       if (controls) talkControls = controls;
     }

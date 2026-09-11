@@ -7,7 +7,12 @@
 // guarded so a widget update that removes those globals only hides the
 // controls while chat keeps working.
 import { attachSurfaceGestures } from "./surface-gestures.js";
-import { attachHoverRub } from "./pet-sounds.js";
+import {
+  attachHoverRub,
+  notePettingMotion,
+  notePettingTap,
+  unlockPetSounds,
+} from "./pet-sounds.js";
 import { t } from "./i18n.js";
 
 export const TALK_ACTIONS = [
@@ -62,6 +67,46 @@ export function getAvatarApi(win = globalThis.window) {
   };
 }
 
+export function pickRandomTalkItem(items, random = Math.random) {
+  if (!items?.length) return null;
+  return items[Math.floor(random() * items.length)] || null;
+}
+
+/** On a pet rub, randomly play a move, a face, or both via the widget API. */
+export function triggerRandomPetReaction(
+  api,
+  { random = Math.random, actions = TALK_ACTIONS, faces = TALK_FACES } = {},
+) {
+  if (!api) return { move: null, face: null };
+  const wantMove = random() < 0.75;
+  const wantFace = random() < 0.75;
+  let move = null;
+  let face = null;
+  if (wantMove || !wantFace) {
+    const action = pickRandomTalkItem(actions, random);
+    if (action && api.playAnimation) {
+      try {
+        api.playAnimation(action.id);
+        move = action.id;
+      } catch (err) {
+        console.warn("[PaintMomo] playAnimation failed:", err);
+      }
+    }
+  }
+  if (wantFace || !wantMove) {
+    const emotion = pickRandomTalkItem(faces, random);
+    if (emotion && api.setEmotion) {
+      try {
+        api.setEmotion(emotion.id);
+        face = emotion.id;
+      } catch (err) {
+        console.warn("[PaintMomo] setEmotion failed:", err);
+      }
+    }
+  }
+  return { move, face };
+}
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export function createPoseController(group, limits = POSE_LIMITS) {
@@ -106,10 +151,16 @@ export function createPoseController(group, limits = POSE_LIMITS) {
 
 // Press on the pet and drag to spin it: one drag across the screen is one
 // full turn. A pinch or the wheel changes its size. Double tap resets.
+// Touch/pen drags also count as petting (sound + reaction). Mouse drag only
+// spins — mouse petting is hover via attachHoverRub.
 export function attachPoseGestures(canvas, pose, options = {}) {
   const isAr = options.isAr || (() => false);
+  const onRub = options.onRub || (() => {});
+  const onPat = options.onPat || (() => {});
+  const onPointerDown = options.onPointerDown || (() => {});
   canvas.style.touchAction = "none";
   canvas.style.cursor = "grab";
+  const isTouchy = (type) => type === "touch" || type === "pen";
   const gestures = attachSurfaceGestures(canvas, {
     shouldNavigate: () => true,
     acceptsEvent: (event) =>
@@ -119,11 +170,20 @@ export function attachPoseGestures(canvas, pose, options = {}) {
     move() {},
     end() {},
     cancel() {},
-    navigate({ dx, ratio, count }) {
+    navigateStart(event) {
+      onPointerDown(event);
+    },
+    navigate({ dx, dy, ratio, count, pointerType }) {
       if (isAr()) return;
       const width = Math.max(1, canvas.clientWidth || canvas.width);
       pose.turnRadians((dx / width) * POSE_LIMITS.turnsPerDrag * Math.PI * 2);
       if (count >= 2) pose.zoom(ratio);
+      else if (isTouchy(pointerType)) onRub(Math.hypot(dx || 0, dy || 0));
+    },
+    navigateEnd({ travel, durationMs, pointerType }) {
+      if (isAr() || !isTouchy(pointerType)) return;
+      // Quick tap / short stroke = a pat when there was almost no drag.
+      if (travel < 24 && durationMs < 500) onPat();
     },
   });
   const onWheel = (event) => {
@@ -213,20 +273,35 @@ const mounted = new WeakSet();
 // Idempotent: safe to call every time the widget's DOM changes.
 // Prefer `surface` (the host container) for gestures: the widget canvas often
 // ignores pointer input, so the container receives the mouse.
-export function mountTalkControls({ canvas, surface, tray, hint, win, onRub }) {
+// Rubbing plays a sound and randomly triggers a move and/or face.
+export function mountTalkControls({
+  canvas,
+  surface,
+  tray,
+  hint,
+  win,
+  getPetType,
+}) {
   if (!canvas || mounted.has(canvas)) return null;
   const api = getAvatarApi(win);
   if (!api) return null;
   mounted.add(canvas);
   const pose = createPoseController(api.group);
   const gestureSurface = surface || canvas;
-  const gestures = attachPoseGestures(gestureSurface, pose, { isAr: api.isAr });
-  const rub = onRub
-    ? attachHoverRub(gestureSurface, {
-        onRub,
-        isEnabled: () => !api.isAr(),
-      })
-    : null;
+  const petType = () =>
+    typeof getPetType === "function" ? getPetType() : getPetType;
+  const react = () => triggerRandomPetReaction(api);
+  const petOpts = () => ({ react });
+  const gestures = attachPoseGestures(gestureSurface, pose, {
+    isAr: api.isAr,
+    onPointerDown: () => unlockPetSounds(),
+    onRub: (distance) => notePettingMotion(distance, petType(), petOpts()),
+    onPat: () => notePettingTap(petType(), petOpts()),
+  });
+  const rub = attachHoverRub(gestureSurface, {
+    isEnabled: () => !api.isAr(),
+    onRub: (distance) => notePettingMotion(distance, petType(), petOpts()),
+  });
   if (tray) renderActionTray(tray, api, pose);
   if (hint) hint.hidden = false;
   return {
@@ -234,7 +309,7 @@ export function mountTalkControls({ canvas, surface, tray, hint, win, onRub }) {
     pose,
     destroy() {
       gestures.detach();
-      rub?.detach();
+      rub.detach();
       mounted.delete(canvas);
       if (tray) {
         tray.replaceChildren();

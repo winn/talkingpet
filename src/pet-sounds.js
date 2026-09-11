@@ -128,7 +128,7 @@ export async function playRandomPetSound(
   return playClip(clip, { AudioCtor });
 }
 
-/** Accumulate rub distance; when enough stroking has happened, play a random sound. */
+/** Accumulate rub distance; when enough stroking has happened, react. */
 export function notePettingMotion(
   distancePx,
   petType,
@@ -137,6 +137,7 @@ export function notePettingMotion(
     rubDistance = RUB_DISTANCE_PX,
     cooldownMs = COOLDOWN_MS,
     play = playRandomPetSound,
+    react = null,
   } = {},
 ) {
   const step = Math.abs(Number(distancePx) || 0);
@@ -144,10 +145,36 @@ export function notePettingMotion(
   travelPx += step;
   if (travelPx < rubDistance) return false;
   travelPx = 0;
+  return firePetReaction(petType, { now, cooldownMs, play, react });
+}
+
+/** One-shot pat (tap) that still respects the shared cooldown. */
+export function notePettingTap(
+  petType,
+  {
+    now = Date.now(),
+    cooldownMs = COOLDOWN_MS,
+    play = playRandomPetSound,
+    react = null,
+  } = {},
+) {
+  travelPx = 0;
+  return firePetReaction(petType, { now, cooldownMs, play, react });
+}
+
+function firePetReaction(
+  petType,
+  { now, cooldownMs, play, react },
+) {
   if (lastPlayedAt && now - lastPlayedAt < cooldownMs) return false;
-  if (activeAudio && !activeAudio.paused && !activeAudio.ended) return false;
   lastPlayedAt = now;
-  play(petType);
+  const soundBusy = activeAudio && !activeAudio.paused && !activeAudio.ended;
+  if (!soundBusy) play(petType);
+  try {
+    react?.(petType);
+  } catch (err) {
+    console.warn("[PaintMomo] Pet reaction failed:", err);
+  }
   return true;
 }
 

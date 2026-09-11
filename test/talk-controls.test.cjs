@@ -83,7 +83,25 @@ test("every talk action and face label has a Thai translation", async () => {
     "Smaller",
     "Reset view",
     "Pet actions",
-    "Hold and drag the pet to spin it · Pinch or wheel to resize · Double tap resets",
+    "Stroke or tap to pet · Drag to spin · Pinch to resize",
   ])
     assert.match(TH[key] || "", /[ก-๙]/, `missing Thai for ${key}`);
+});
+
+test("rub reaction randomly triggers a move and or face", async () => {
+  const { triggerRandomPetReaction, TALK_ACTIONS, TALK_FACES } = await import(
+    "../src/talk-controls.js"
+  );
+  const played = [];
+  const emotions = [];
+  const api = {
+    playAnimation: (id) => played.push(id),
+    setEmotion: (id) => emotions.push(id),
+  };
+  const both = triggerRandomPetReaction(api, { random: () => 0 });
+  assert.ok(TALK_ACTIONS.some((a) => a.id === both.move));
+  assert.ok(TALK_FACES.some((f) => f.id === both.face));
+  assert.equal(played.length, 1);
+  assert.equal(emotions.length, 1);
+  assert.deepEqual(triggerRandomPetReaction(null), { move: null, face: null });
 });

@@ -229,8 +229,8 @@ export const TH = {
   "Log out": "ออกจากระบบ",
   "Available credits": "เครดิตที่เหลือ",
   "Session rate": "อัตราการใช้เครดิต",
-  "Hold and drag the pet to spin it · Pinch or wheel to resize · Double tap resets":
-    "กดค้างแล้วลากเพื่อหมุนเพื่อน · บีบนิ้วหรือหมุนล้อเมาส์เพื่อย่อขยาย · แตะสองครั้งเพื่อรีเซ็ต",
+  "Stroke or tap to pet · Drag to spin · Pinch to resize":
+    "ลูบหรือแตะเพื่อลูบเล่น · ลากเพื่อหมุน · บีบนิ้วเพื่อย่อขยาย",
   View: "มุมมอง",
   Bigger: "ขยาย",
   Smaller: "ย่อ",

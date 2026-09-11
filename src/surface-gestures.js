@@ -4,6 +4,7 @@ export function attachSurfaceGestures(element, callbacks) {
   const pointers = new Map();
   let mode = null;
   let previous = null;
+  let stroke = null;
   const accepts =
     callbacks.acceptsEvent || ((event) => event.target === element);
   const metrics = () => {
@@ -32,10 +33,17 @@ export function attachSurfaceGestures(element, callbacks) {
     element.setPointerCapture(event.pointerId);
     if (pointers.size === 1) {
       mode = callbacks.shouldNavigate(event) ? "navigate" : "paint";
+      stroke = {
+        pointerType: event.pointerType || "mouse",
+        startedAt: Date.now(),
+        travel: 0,
+      };
       if (mode === "paint") callbacks.start(event);
+      else callbacks.navigateStart?.(event);
     } else {
       if (mode === "paint") callbacks.cancel();
       mode = "navigate";
+      if (stroke) stroke.travel = Infinity;
     }
     previous = metrics();
   };
@@ -46,20 +54,34 @@ export function attachSurfaceGestures(element, callbacks) {
     pointers.set(event.pointerId, event);
     const next = metrics();
     if (mode === "paint") callbacks.move(event);
-    else if (previous && previous.count === next.count)
+    else if (previous && previous.count === next.count) {
+      const dx = next.x - previous.x;
+      const dy = next.y - previous.y;
+      if (stroke) stroke.travel += Math.hypot(dx, dy);
       callbacks.navigate({
-        dx: next.x - previous.x,
-        dy: next.y - previous.y,
+        dx,
+        dy,
         ratio: next.distance / previous.distance,
         x: next.x,
         y: next.y,
         count: next.count,
+        pointerType: stroke?.pointerType || event.pointerType || "mouse",
       });
+    }
     previous = next;
   };
   const onEnd = (event) => {
     if (!pointers.has(event.pointerId)) return;
     event.stopImmediatePropagation();
+    const ending = mode;
+    const summary = stroke
+      ? {
+          pointerType: stroke.pointerType,
+          travel: stroke.travel,
+          durationMs: Date.now() - stroke.startedAt,
+          type: event.type,
+        }
+      : null;
     if (mode === "paint") {
       if (event.type === "pointerup") callbacks.end(event);
       else callbacks.cancel();
@@ -69,6 +91,11 @@ export function attachSurfaceGestures(element, callbacks) {
       element.releasePointerCapture(event.pointerId);
     mode = pointers.size ? "navigate" : null;
     previous = pointers.size ? metrics() : null;
+    if (!pointers.size) {
+      stroke = null;
+      if (ending === "navigate" && summary && event.type === "pointerup")
+        callbacks.navigateEnd?.(summary);
+    }
   };
   element.addEventListener("pointerdown", onDown, true);
   element.addEventListener("pointermove", onMove, true);
@@ -81,6 +108,7 @@ export function attachSurfaceGestures(element, callbacks) {
       pointers.clear();
       mode = null;
       previous = null;
+      stroke = null;
     },
   };
 }

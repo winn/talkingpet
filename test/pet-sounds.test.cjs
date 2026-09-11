@@ -70,6 +70,60 @@ test("petting motion waits for travel and cooldown before playing", async () => 
   assert.deepEqual(plays, ["minicat", "minicat"]);
 });
 
+test("petting motion still reacts when sound is busy", async () => {
+  const { notePettingMotion, resetSfxLibrary, playClip } = await import(
+    "../src/pet-sounds.js"
+  );
+  resetSfxLibrary();
+  const reactions = [];
+  playClip({ url: "about:blank" }, {
+    AudioCtor: function FakeAudio() {
+      this.paused = false;
+      this.ended = false;
+      this.volume = 1;
+      this.play = () => Promise.resolve();
+      this.pause = () => {
+        this.paused = true;
+      };
+      this.addEventListener = () => {};
+    },
+  });
+  assert.equal(
+    notePettingMotion(200, "minicat", {
+      now: 5000,
+      play: () => reactions.push("sound"),
+      react: () => reactions.push("react"),
+    }),
+    true,
+  );
+  assert.deepEqual(reactions, ["react"]);
+});
+
+test("petting tap fires a one-shot reaction with cooldown", async () => {
+  const { notePettingTap, resetSfxLibrary } = await import(
+    "../src/pet-sounds.js"
+  );
+  resetSfxLibrary();
+  const plays = [];
+  assert.equal(
+    notePettingTap("minicat", {
+      now: 1000,
+      play: () => plays.push("a"),
+      react: () => plays.push("r"),
+    }),
+    true,
+  );
+  assert.deepEqual(plays, ["a", "r"]);
+  assert.equal(
+    notePettingTap("minicat", {
+      now: 1200,
+      play: () => plays.push("a2"),
+      react: () => plays.push("r2"),
+    }),
+    false,
+  );
+});
+
 test("hover rub tracks mouse move without a held button", async () => {
   const { attachHoverRub, resetSfxLibrary } = await import(
     "../src/pet-sounds.js"
