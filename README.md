@@ -78,6 +78,16 @@ Everyone signs in before using the studio (`src/auth.js`, `src/account.js`). Sig
 - **Admin URL.** `/admin` opens the admin screen directly for signed-in admins (Vercel rewrites it to the app in `vercel.json`); everyone else is sent home.
 - **Buying points.** Point packs (`public.point_packs`) are sold through Stripe Checkout. `api/checkout.js` creates the session and `api/stripe/webhook.js` adds the points once Stripe reports payment. Until Stripe is configured the Buy buttons read “Soon”.
 
+### Admin: AI keys, music, and sounds
+
+The admin screen (`/admin`) has three more tabs, modeled on Story in the Air:
+
+- **AI keys.** Save an ElevenLabs key (music and sound effects) and optionally a Gemini key (batch planning). Keys are verified with the provider, stored in `public.app_settings` (admins only), and never shown again; `ELEVENLABS_API_KEY` / `GEMINI_API_KEY` environment variables act as fallbacks.
+- **Music.** Compose instrumental background tracks with ElevenLabs Music (`api/admin/music.js`). Pick a starter idea, write a prompt, choose a length, or make the whole starter set. With a Gemini key, "Plan with Gemini and compose" invents a batch and makes them one by one.
+- **Sounds.** Make short effects with ElevenLabs Sound Effects (`api/admin/sfx.js`): meows, purrs, paws crawling, room ambience, and more. Each clip ends with a `[tag]` such as `[meow]` that is unique in the library.
+
+Files land in the public `bgm` and `sfx` storage buckets and rows in `bgm_tracks` / `sfx_clips`; any signed-in user can read active items (`listActiveAudio` in `src/auth.js`) for playback in the app. These functions act with the admin's own session under row level security, so they work without the Supabase secret key. Set `ELEVENLABS_API_BASE` to point the functions at a stub for tests.
+
 ### Server functions
 
 The `api/` folder holds Vercel functions (Web `Request`/`Response` handlers) and `server/` their shared helpers. During `npm run dev` the Vite plugin in `tools/dev-api.js` serves the same functions at `/api/*`, reading secrets from `.env`.

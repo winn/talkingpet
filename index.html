@@ -412,6 +412,15 @@
           <button type="button" role="tab" data-admin-tab="coupons" aria-selected="false">
             Coupons
           </button>
+          <button type="button" role="tab" data-admin-tab="keys" aria-selected="false">
+            AI keys
+          </button>
+          <button type="button" role="tab" data-admin-tab="music" aria-selected="false">
+            Music
+          </button>
+          <button type="button" role="tab" data-admin-tab="sfx" aria-selected="false">
+            Sounds
+          </button>
         </div>
         <p id="adminError" class="form-error" role="alert" hidden></p>
         <p id="adminNote" class="admin-note" role="status" hidden></p>
@@ -497,6 +506,110 @@
             <span id="adminCouponCount" class="admin-count"></span>
           </div>
           <div id="adminCouponList" class="admin-list"></div>
+        </section>
+        <section id="adminKeysPanel" class="admin-panel" hidden>
+          <h2>AI keys</h2>
+          <p class="admin-lead">
+            Provider keys used to make music and sounds. Saved keys take effect
+            right away and are never shown again; they are checked with the
+            provider before saving.
+          </p>
+          <div id="adminKeyCards" class="admin-list"></div>
+        </section>
+        <section id="adminMusicPanel" class="admin-panel" hidden>
+          <h2>Background music</h2>
+          <p class="admin-lead">
+            Instrumental pieces made with ElevenLabs Music that can play under a
+            pet chat. Pick a starter idea or describe your own.
+          </p>
+          <div id="musicIdeas" class="idea-chips" aria-label="Starter ideas"></div>
+          <form id="musicForm" class="pack-form audio-form">
+            <h3>New track</h3>
+            <div class="pack-form-grid">
+              <label>Title<input name="title" type="text" maxlength="120" required /></label>
+              <label>Mood<select name="mood">
+                <option value="">—</option>
+                <option>calm</option><option>happy</option><option>playful</option>
+                <option>magical</option><option>cozy</option><option>adventure</option>
+                <option>sleepy</option>
+              </select></label>
+              <label>Length<select name="durationMs">
+                <option value="30000">30 seconds</option>
+                <option value="60000" selected>1 minute</option>
+                <option value="120000">2 minutes</option>
+                <option value="180000">3 minutes</option>
+              </select></label>
+              <label>Tags (comma separated)<input name="tags" type="text" maxlength="200" placeholder="ukulele, sunny, morning" /></label>
+            </div>
+            <label class="audio-prompt">Describe the music<textarea name="prompt" rows="3" maxlength="4000" required placeholder="A cheerful, bouncy tune with ukulele and glockenspiel, warm and simple, no vocals"></textarea></label>
+            <div class="pack-form-actions">
+              <button type="submit" class="primary">Compose track</button>
+            </div>
+          </form>
+          <div class="pack-form batch-box">
+            <h3>Make many at once</h3>
+            <div class="batch-row">
+              <button id="musicStarterBtn" type="button" class="secondary">Make the starter set</button>
+              <span class="batch-or">or</span>
+              <label>Plan<input id="musicPlanCount" type="number" min="1" max="20" value="5" /></label>
+              <label class="batch-brief">Direction<input id="musicPlanBrief" type="text" maxlength="500" placeholder="e.g. rainy day, sleepy kitten" /></label>
+              <button id="musicPlanBtn" type="button" class="secondary">Plan with Gemini and compose</button>
+              <button id="musicStopBtn" type="button" class="secondary" hidden>Stop</button>
+            </div>
+            <pre id="musicRunLog" class="run-log" hidden></pre>
+          </div>
+          <div class="admin-toolbar">
+            <input id="musicSearch" type="search" placeholder="Search tracks" aria-label="Search music" />
+            <span id="musicCount" class="admin-count"></span>
+          </div>
+          <div id="musicList" class="admin-list"></div>
+        </section>
+        <section id="adminSfxPanel" class="admin-panel" hidden>
+          <h2>Sound effects</h2>
+          <p class="admin-lead">
+            Short clips made with ElevenLabs Sound Effects: meows, purrs, paws
+            crawling, room ambience and more. Each clip gets a [tag] so it can be
+            called by name.
+          </p>
+          <div id="sfxIdeas" class="idea-chips" aria-label="Starter ideas"></div>
+          <form id="sfxForm" class="pack-form audio-form">
+            <h3>New sound</h3>
+            <div class="pack-form-grid">
+              <label>Title<input name="title" type="text" maxlength="120" required /></label>
+              <label>Length<select name="durationMs">
+                <option value="500">0.5 seconds</option>
+                <option value="1000">1 second</option>
+                <option value="2000" selected>2 seconds</option>
+                <option value="3000">3 seconds</option>
+                <option value="5000">5 seconds</option>
+                <option value="8000">8 seconds</option>
+                <option value="15000">15 seconds</option>
+              </select></label>
+              <label>Tags (comma separated)<input name="tags" type="text" maxlength="200" placeholder="cat, cute" /></label>
+            </div>
+            <label class="audio-prompt">Describe the sound, ending with a [tag]<textarea name="prompt" rows="2" maxlength="2000" required placeholder="A small cat meowing once, cute and clear [meow]"></textarea></label>
+            <p id="sfxCuePreview" class="cue-preview"></p>
+            <div class="pack-form-actions">
+              <button type="submit" class="primary">Make sound</button>
+            </div>
+          </form>
+          <div class="pack-form batch-box">
+            <h3>Make many at once</h3>
+            <div class="batch-row">
+              <button id="sfxStarterBtn" type="button" class="secondary">Make the starter set</button>
+              <span class="batch-or">or</span>
+              <label>Plan<input id="sfxPlanCount" type="number" min="1" max="30" value="10" /></label>
+              <label class="batch-brief">Direction<input id="sfxPlanBrief" type="text" maxlength="500" placeholder="e.g. more dog sounds, outdoor ambience" /></label>
+              <button id="sfxPlanBtn" type="button" class="secondary">Plan with Gemini and make</button>
+              <button id="sfxStopBtn" type="button" class="secondary" hidden>Stop</button>
+            </div>
+            <pre id="sfxRunLog" class="run-log" hidden></pre>
+          </div>
+          <div class="admin-toolbar">
+            <input id="sfxSearch" type="search" placeholder="Search sounds or tags" aria-label="Search sounds" />
+            <span id="sfxCount" class="admin-count"></span>
+          </div>
+          <div id="sfxList" class="admin-list"></div>
         </section>
       </div>
     </div>

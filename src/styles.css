@@ -3724,3 +3724,173 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   font-size: 15px;
   letter-spacing: 0.5px;
 }
+
+/* AI keys and audio library */
+.key-card {
+  display: grid;
+  gap: 10px;
+}
+.key-card h3 {
+  font-size: 16px;
+}
+.key-status {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.key-status strong {
+  color: var(--ink);
+}
+.key-status .is-missing {
+  color: #a34451;
+}
+.key-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.key-form input {
+  flex: 1 1 260px;
+  min-height: 42px;
+  border: 1.5px solid #c9cebc;
+  background: white;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 15px;
+  color: var(--ink);
+}
+.key-form button {
+  min-height: 42px;
+  padding: 8px 14px;
+}
+.key-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.idea-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.idea-chips button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: #fffefb;
+}
+.audio-form .audio-prompt {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.audio-form textarea {
+  min-height: 0;
+  border: 1.5px solid #c9cebc;
+  background: white;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--ink);
+}
+.pack-form-grid select {
+  min-height: 42px;
+  border: 1.5px solid #c9cebc;
+  background: white;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+}
+.cue-preview {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cue-preview code,
+.sfx-cue {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: #eaece2;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.batch-box {
+  background: #fffefb;
+}
+.batch-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 10px;
+}
+.batch-row label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.batch-row input {
+  min-height: 42px;
+  border: 1.5px solid #c9cebc;
+  background: white;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 15px;
+  color: var(--ink);
+}
+.batch-row input[type="number"] {
+  width: 80px;
+}
+.batch-brief {
+  flex: 1 1 220px;
+}
+.batch-or {
+  font-size: 12px;
+  color: var(--muted);
+  align-self: center;
+}
+.batch-row button {
+  min-height: 42px;
+  padding: 8px 14px;
+}
+.batch-row button[hidden] {
+  display: none;
+}
+.run-log {
+  margin: 12px 0 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #303b2b;
+  color: #eef1e4;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.run-log[hidden] {
+  display: none;
+}
+.audio-row audio {
+  width: 100%;
+  max-width: 360px;
+  height: 36px;
+  grid-column: 1 / -1;
+}
+.audio-row .admin-row-actions {
+  grid-column: 1 / -1;
+}
+.busy-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: 8px;
+}

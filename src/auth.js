@@ -342,3 +342,106 @@ export async function adminUpdateCoupon(id, patch) {
   if (error) throw new Error(friendlyAdminError(error.message));
   return data;
 }
+
+// ---- Admin: AI keys and the audio library ---------------------------------
+
+function friendlyServerError(message) {
+  const m = String(message ?? "");
+  if (/missing_elevenlabs_key/.test(m)) return "Save an ElevenLabs key in the AI keys tab first.";
+  if (/missing_gemini_key/.test(m)) return "Save a Gemini key in the AI keys tab first.";
+  if (/invalid_key/.test(m)) return "The provider refused this key. Check it and any permissions (ElevenLabs keys need Music and Sound Effects access).";
+  if (/unreachable/.test(m)) return "Could not reach the provider right now. Try again.";
+  if (/sfx_cue_taken/.test(m)) return "That [tag] is already in the library. Change it and try again.";
+  if (/rate_limited/.test(m)) return "Gemini is busy. Try again in a moment.";
+  if (/elevenlabs_empty/.test(m)) return "The provider returned no audio.";
+  if (/admins_only/.test(m)) return "Admins only.";
+  return m || "Request failed.";
+}
+
+async function adminApi(path, { method = "POST", body, query } = {}) {
+  const session = await getSession();
+  if (!session) throw new Error("Sign in first.");
+  const url = query ? `${path}?${new URLSearchParams(query)}` : path;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await readJson(res);
+  if (!res.ok) throw new Error(friendlyServerError(data.error || data.code || `Request failed (${res.status}).`));
+  return data;
+}
+
+export const AI_PROVIDERS = ["elevenlabs", "gemini"];
+
+export const adminKeyStatus = (provider) =>
+  adminApi("/api/admin/keys", { method: "GET", query: { provider } });
+export const adminSaveKey = (provider, key) =>
+  adminApi("/api/admin/keys", { body: { provider, action: "save", key } });
+export const adminTestKey = (provider) =>
+  adminApi("/api/admin/keys", { body: { provider, action: "test" } });
+export const adminRemoveKey = (provider) =>
+  adminApi("/api/admin/keys", { body: { provider, action: "remove" } });
+
+export const adminGenerateMusic = (payload) =>
+  adminApi("/api/admin/music", { body: payload }).then((d) => d.track);
+export const adminGenerateSfx = (payload) =>
+  adminApi("/api/admin/sfx", { body: payload }).then((d) => d.clip);
+export const adminPlanAudio = (kind, options) =>
+  adminApi("/api/admin/plan", { body: { kind, ...options } }).then((d) => d.plans ?? []);
+
+const AUDIO = {
+  music: { table: "bgm_tracks", bucket: "bgm", columns: "id, title, prompt, mood, storage_path, duration_ms, model_id, tags, active, created_at" },
+  sfx: { table: "sfx_clips", bucket: "sfx", columns: "id, title, prompt, cue, storage_path, duration_ms, model_id, tags, active, created_at" },
+};
+
+/** Public URL of a stored clip (the buckets are public-read). */
+export function audioUrl(kind, storagePath) {
+  const base = readEnv("VITE_SUPABASE_URL");
+  return `${base}/storage/v1/object/public/${AUDIO[kind].bucket}/${storagePath}`;
+}
+
+export async function adminListAudio(kind) {
+  const spec = AUDIO[kind];
+  const { data, error } = await getSupabase()
+    .from(spec.table)
+    .select(spec.columns)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw new Error(friendlyAdminError(error.message));
+  return data ?? [];
+}
+
+export async function adminUpdateAudio(kind, id, patch) {
+  const spec = AUDIO[kind];
+  const { data, error } = await getSupabase()
+    .from(spec.table)
+    .update(patch)
+    .eq("id", id)
+    .select(spec.columns)
+    .single();
+  if (error) throw new Error(friendlyAdminError(error.message));
+  return data;
+}
+
+export async function adminDeleteAudio(kind, id, storagePath) {
+  const spec = AUDIO[kind];
+  const { error } = await getSupabase().from(spec.table).delete().eq("id", id);
+  if (error) throw new Error(friendlyAdminError(error.message));
+  if (storagePath) await getSupabase().storage.from(spec.bucket).remove([storagePath]);
+}
+
+/** Active library items for the app itself (any signed-in user). */
+export async function listActiveAudio(kind) {
+  const spec = AUDIO[kind];
+  const { data, error } = await getSupabase()
+    .from(spec.table)
+    .select(spec.columns)
+    .eq("active", true)
+    .order("title", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => ({ ...row, url: audioUrl(kind, row.storage_path) }));
+}

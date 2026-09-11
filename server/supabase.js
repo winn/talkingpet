@@ -30,3 +30,33 @@ export async function userFromRequest(request) {
   if (error || !data?.user) return null;
   return data.user;
 }
+
+/**
+ * Client that acts as the caller (their access token, anon key). Every table
+ * and storage rule is enforced by RLS, so no service key is needed for admin
+ * work as long as the caller is an admin.
+ */
+export function userClient(request) {
+  const header = request.headers.get("authorization") || "";
+  const token = header.replace(/^Bearer\s+/i, "").trim();
+  const url = supabaseUrl();
+  const key = supabaseAnonKey();
+  if (!token || !url || !key) return null;
+  return createClient(url, key, {
+    ...NO_SESSION,
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
+/** Resolve { client, user } for an admin caller, or null. */
+export async function requireAdmin(request) {
+  const client = userClient(request);
+  if (!client) return null;
+  const header = request.headers.get("authorization") || "";
+  const token = header.replace(/^Bearer\s+/i, "").trim();
+  const { data: userData, error: userError } = await client.auth.getUser(token);
+  if (userError || !userData?.user) return null;
+  const { data: isAdmin } = await client.rpc("is_admin");
+  if (!isAdmin) return null;
+  return { client, user: userData.user };
+}
