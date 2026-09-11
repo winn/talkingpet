@@ -100,6 +100,9 @@ export async function getPetById(id) {
   return toRecord(data);
 }
 
+// The pets table keys rows by (owner_key, id), where owner_key is a generated
+// column equal to the account id or, for browsers without an account, the
+// device id. Rows written here carry only the device id.
 export async function savePet(pet) {
   if (!pet || !pet.id) throw new Error("Pet must have an id");
   const { client, deviceId } = await openPetDb();
@@ -116,7 +119,7 @@ export async function savePet(pet) {
       created_at: record.createdAt,
       updated_at: record.updatedAt,
     },
-    { onConflict: "device_id,id" },
+    { onConflict: "owner_key,id" },
   );
   throwIfError(error, "Storage request failed");
   return record;
