@@ -288,6 +288,17 @@ export const TH = {
   "{n} points": "{n} แต้ม",
   Soon: "เร็วๆ นี้",
   "No point packs yet.": "ยังไม่มีแพ็กแต้ม",
+  "What your pets remember": "สิ่งที่เพื่อนจำได้",
+  "After each chat, your pet keeps a few things you told it. Forget anything you don't want kept.":
+    "หลังคุยกันแต่ละครั้ง เพื่อนจะจำเรื่องที่เราเล่าให้ฟังไว้ กดลืมเรื่องที่ไม่อยากให้จำได้เลย",
+  "Nothing remembered yet. Tell your pet about yourself!":
+    "ยังไม่มีอะไรให้จำ ลองเล่าเรื่องตัวเองให้เพื่อนฟังสิ!",
+  "from {name}": "จาก {name}",
+  Forget: "ลืม",
+  "Forget this memory": "ลืมเรื่องนี้",
+  "Forget everything": "ลืมทั้งหมด",
+  "Could not forget that. Please try again.": "ลืมไม่สำเร็จ ลองใหม่อีกครั้ง",
+  "{name} will remember what you shared today.": "{name} จะจำเรื่องที่เราเล่าวันนี้ไว้นะ",
   "Buying points is not set up yet. Ask an admin for points.":
     "ยังซื้อแต้มไม่ได้ในตอนนี้ ขอแต้มจากผู้ดูแลได้เลย",
   Admin: "ผู้ดูแล",

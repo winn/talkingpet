@@ -225,7 +225,22 @@ export function samplePrompt(name, recipe, language = "en") {
   const r = normalizeRecipe(recipe);
   return `${recipeChoice(r, "vibe", language).greeting} ${language === "th" ? "เราชื่อ" : "I’m "}${name}${r.style === "excited" ? "! ✨" : language === "th" ? "นะ" : "."} ${recipeChoice(r, "activity", language).example}`;
 }
-export function buildChatGreeting(pet, language = "en") {
+export function memoryInstructions(memories = [], language = "en") {
+  const facts = (Array.isArray(memories) ? memories : [])
+    .map((m) => (typeof m === "string" ? m : m?.content))
+    .map((text) => String(text ?? "").trim())
+    .filter(Boolean);
+  const remind =
+    language === "th"
+      ? "ถ้าเพื่อนบอกให้จำอะไร ให้ตอบอย่างดีใจว่าจะจำไว้"
+      : "If your friend asks you to remember something, say happily that you will.";
+  if (!facts.length) return remind;
+  const lines = facts.map((fact) => `- ${fact}`).join("\n");
+  return language === "th"
+    ? `สิ่งที่เธอจำได้เกี่ยวกับเพื่อนจากการคุยครั้งก่อน:\n${lines}\nนำมาใช้อย่างเป็นธรรมชาติเมื่อเข้ากับบทสนทนา ไม่ต้องพูดถึงทั้งหมดในครั้งเดียว ${remind}`
+    : `Things you remember about your friend from earlier chats:\n${lines}\nBring them up naturally when they fit; do not list them all at once. ${remind}`;
+}
+export function buildChatGreeting(pet, language = "en", memories = []) {
   const personality = pet.promptRecipe
     ? buildPrompt(
         pet.name,
@@ -241,7 +256,7 @@ export function buildChatGreeting(pet, language = "en") {
     language === "th"
       ? "ใช้คำง่าย ๆ สำหรับเด็กอายุ 8 ปีขึ้นไป เริ่มด้วยการแนะนำตัวอย่างอบอุ่นเป็นภาษาไทย"
       : "Use simple words for children aged 8 and up. Introduce yourself warmly in English.";
-  return `${personality}\n\n${direction}`;
+  return `${personality}\n\n${direction}\n\n${memoryInstructions(memories, language)}`;
 }
 export function normalizeBackground(color) {
   return /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f7e8d9";

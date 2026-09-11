@@ -106,7 +106,7 @@ export async function composeSfx({ apiKey, text, durationMs, fetchImpl = fetch }
   return audio;
 }
 
-const GEMINI_URL =
+export const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
 
 function planInstruction(kind, { count, brief, durationMs, taken, takenCues }) {

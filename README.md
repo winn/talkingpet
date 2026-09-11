@@ -34,6 +34,12 @@ The end-to-end suite signs in through the real sign-in screen, so set `E2E_EMAIL
 - Tap **Backdrop** in the pet view to choose a solid color or one of six images: Sunny room, Flower sky, Magic world, Cozy apartment, Dreamy bedroom, and Sweet kitchen. The choice is saved per pet and restored in painting, saved previews, and talk. The saved color remains underneath as a fallback. Add future room images to `assets/backgrounds/` and register their stable IDs and labels in `src/backgrounds.js`, with Thai labels in `src/locales/th.js`.
 - Legacy `minicat_f`, `minicat_m`, `minidog_f`, and `minidog_m` records retain their gender/voice mapping. Pets without a room selection keep their saved solid color.
 
+## Memories
+
+When a talk session ends (leaving with **My pets**, or closing the tab), the app reads the turns the hosted widget stored for that session and posts them to `/api/memories/summarize`. The server asks Gemini for a few lasting facts the child shared about themselves (name, birthday, favourite things, anything they asked the pet to remember), skips anything already known, and stores the rest in `public.user_memories`, scoped to the account. The next chat's instructions include these facts so the pet can bring them up naturally.
+
+The account sheet lists everything remembered under **What your pets remember**, with **Forget** per item and **Forget everything**. Summarising needs a Gemini key: with `SUPABASE_SECRET_KEY` set on the server, the key saved in the admin AI keys tab is used; otherwise set `GEMINI_API_KEY` in the server environment. Without either, sessions are simply not summarised and talking works as before. Apply `supabase/migrations/20260911230000_user_memories.sql` to the project first.
+
 ## Talk mode controls
 
 While talking, the pet can be posed without involving the AI:

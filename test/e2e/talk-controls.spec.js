@@ -9,7 +9,7 @@ const stubChat = (page) =>
       contentType: "application/javascript",
       body: `window.played=[];window.emotions=[];
 window.WebAvatar={isARMode:false,avatarGroup:{rotation:{y:0},position:{x:0,y:0,z:-0.8},scale:{x:1,y:1,z:1,set(a,b,c){this.x=a;this.y=b;this.z=c;}}},setEmotion(n,w){window.emotions.push(n);}};
-window.ChatWidget={destroy(){document.querySelector('#chatWidgetContainer').replaceChildren()},playAnimation(n){window.played.push(n)},updateConfig(config){window.ChatWidgetConfig=config;document.querySelector(config.container).innerHTML='<canvas aria-label="Test avatar" width="600" height="600" style="width:100%;height:100%"></canvas><div id="bcw-rt-controls" style="position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:center;gap:12px"><div id="bcw-rt-volume-wrap"><button class="bcw-rt-btn" aria-label="Volume">V</button></div><div id="bcw-rt-ar-toggle-wrap"><button id="bcw-rt-ar-toggle-btn" class="bcw-rt-btn" aria-label="Enter AR">AR</button></div><div id="bcw-rt-call-btn-wrap"><button id="bcw-rt-call-btn" class="bcw-rt-btn" aria-label="Connect to AI">C</button></div></div>'}};
+window.ChatWidget={destroy(){document.querySelector('#chatWidgetContainer').replaceChildren()},playAnimation(n){window.played.push(n)},updateConfig(config){window.ChatWidgetConfig={...window.ChatWidgetConfig,...config};document.querySelector(window.ChatWidgetConfig.container).innerHTML='<canvas aria-label="Test avatar" width="600" height="600" style="width:100%;height:100%"></canvas><div id="bcw-rt-controls" style="position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:center;gap:12px"><div id="bcw-rt-volume-wrap"><button class="bcw-rt-btn" aria-label="Volume">V</button></div><div id="bcw-rt-ar-toggle-wrap"><button id="bcw-rt-ar-toggle-btn" class="bcw-rt-btn" aria-label="Enter AR">AR</button></div><div id="bcw-rt-call-btn-wrap"><button id="bcw-rt-call-btn" class="bcw-rt-btn" aria-label="Connect to AI">C</button></div></div>'}};
 window.ChatWidget.updateConfig(window.ChatWidgetConfig);`,
     }),
   );
@@ -112,6 +112,88 @@ test("talk swaps the widget's AR toggle for a Settings button that changes langu
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.locator("#exitTalkBtn").click();
   await expect(page.locator("#talkScreen")).toBeHidden();
+});
+
+test("leaving talk gets the chat remembered, the next chat knows it, and memories can be forgotten", async ({
+  page,
+}) => {
+  const memories = new Map();
+  const summaries = [];
+  await page.route("**/api/memories/summarize", async (route) => {
+    const body = JSON.parse(route.request().postData() || "{}");
+    summaries.push(body);
+    const added = {
+      id: "m1",
+      content: "My friend's name is John.",
+      pet_name: body.petName,
+      created_at: "2026-09-11T00:00:00Z",
+    };
+    memories.set(added.id, added);
+    await route.fulfill({ json: { added: [added] } });
+  });
+  await page.route("**/rest/v1/user_memories**", (route) => {
+    const method = route.request().method();
+    if (method === "GET") return route.fulfill({ json: [...memories.values()] });
+    if (method === "DELETE") {
+      const id = new URL(route.request().url()).searchParams.get("id");
+      if (id) memories.delete(id.replace(/^eq\./, ""));
+      else memories.clear();
+      return route.fulfill({ status: 204, body: "" });
+    }
+    return route.continue();
+  });
+  await openTalk(page);
+  expect(await page.evaluate(() => window.ChatWidgetConfig.greetingInstruction)).toMatch(
+    /If your friend asks you to remember something/,
+  );
+  // The hosted widget stores each session's turns in localStorage.
+  await page.evaluate(() => {
+    const now = Date.now();
+    localStorage.setItem(
+      "botnoi_history_test",
+      JSON.stringify([
+        { sender: "user", text: "stale line from last week", timestamp: now - 86400000 },
+        { sender: "user", text: "My name is John", uiText: "My name is John", timestamp: now },
+        { sender: "bot", text: "Nice to meet you, John!", timestamp: now + 1 },
+      ]),
+    );
+  });
+  await page.locator("#exitTalkBtn").click();
+  await expect(page.locator("#petHubScreen")).toBeVisible();
+  await expect(page.locator("#toast")).toHaveText("Momo will remember what you shared today.");
+  expect(summaries).toHaveLength(1);
+  expect(summaries[0]).toMatchObject({
+    petId: "talk-controls",
+    petName: "Momo",
+    language: "en",
+    transcript: [
+      { role: "user", text: "My name is John" },
+      { role: "pet", text: "Nice to meet you, John!" },
+    ],
+  });
+
+  // The next chat is told what the pet remembers.
+  await page.getByRole("button", { name: "Talk to Momo", exact: true }).click();
+  await expect(page.locator("#chatWidgetContainer canvas")).toBeVisible();
+  expect(await page.evaluate(() => window.ChatWidgetConfig.greetingInstruction)).toMatch(
+    /Things you remember about your friend from earlier chats:\n- My friend's name is John\./,
+  );
+  await page.locator("#exitTalkBtn").click();
+  await expect(page.locator("#petHubScreen")).toBeVisible();
+  expect(summaries).toHaveLength(1);
+
+  // The account sheet lists memories and can forget them.
+  await page.locator("#accountBtn").click();
+  const row = page.locator("#memoryList .memory-row");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("My friend's name is John.");
+  await expect(row).toContainText("from Momo");
+  await expect(page.locator("#forgetAllBtn")).toBeVisible();
+  await row.getByRole("button", { name: "Forget this memory" }).click();
+  await expect(page.locator("#memoryList .memory-row")).toHaveCount(0);
+  await expect(page.locator("#memoryList")).toContainText("Nothing remembered yet");
+  await expect(page.locator("#forgetAllBtn")).toBeHidden();
+  expect(memories.size).toBe(0);
 });
 
 test("holding and dragging spins the pet; wheel zooms and double-click resets", async ({

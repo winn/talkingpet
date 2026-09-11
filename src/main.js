@@ -44,6 +44,13 @@ import { localizeChatControls } from "./chat-labels.js";
 import { initPreventPageZoom } from "./prevent-page-zoom.js";
 import { mountTalkControls } from "./talk-controls.js";
 import { mountTalkSettings } from "./talk-settings.js";
+import {
+  listMemories,
+  readWidgetHistory,
+  readWidgetStoreHistory,
+  rememberSession,
+  transcriptSince,
+} from "./memories.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
 import {
   BACKGROUNDS,
@@ -98,6 +105,9 @@ const compactStudio = window.matchMedia(
 
 let threeScene = null;
 let threeCamera = null;
+// What the pet knows about its friend for this talk session, and when it began.
+let activeMemories = [];
+let talkStartedAt = 0;
 let threeRenderer = null;
 let threeControls = null;
 let isPainterRunning = false;
@@ -321,6 +331,8 @@ function initHubEvents() {
     }
   });
   exitTalkBtn.addEventListener("click", async () => {
+    const leavingPet = activeChatPet;
+    const transcript = collectTalkTranscript();
     chatLaunchToken++;
     activeChatPet = null;
     chatThemeObserver?.disconnect();
@@ -339,7 +351,28 @@ function initHubEvents() {
     document.getElementById("webavatar-jssdk")?.remove();
     revokeAllPetVrmUrls();
     await loadPetHub();
+    rememberTalkSession(leavingPet, transcript);
   });
+}
+
+/** The friend's and pet's turns from this session only. */
+function collectTalkTranscript() {
+  return transcriptSince(
+    [...readWidgetStoreHistory(window), ...readWidgetHistory()],
+    talkStartedAt,
+  );
+}
+
+// Runs after the hub is back so leaving never waits on the summary.
+async function rememberTalkSession(pet, transcript) {
+  if (!pet || !transcript.length) return;
+  const added = await rememberSession({
+    pet,
+    language: getLanguage(),
+    transcript,
+  });
+  if (added.length)
+    notify("{name} will remember what you shared today.", { name: pet.name });
 }
 
 async function loadPetHub() {
@@ -696,6 +729,9 @@ export async function launchPetChat(pet) {
   const vrmBlobUrl = await createPetVrmUrl(config.baseModelUrl, textureBlob);
   if (launchToken !== chatLaunchToken) return;
   activeChatPet = pet;
+  talkStartedAt = Date.now();
+  activeMemories = await listMemories().catch(() => []);
+  if (launchToken !== chatLaunchToken) return;
   const backgroundColor = normalizeBackground(pet.backgroundColor);
   const backgroundId = resolveBackgroundId(pet.backgroundId);
   talkScreen.style.setProperty("--talk-background", backgroundColor);
@@ -722,7 +758,7 @@ export async function launchPetChat(pet) {
   talkScreen.classList.remove("hidden");
   talkScreen.style.display = "flex";
 
-  const greeting = buildChatGreeting(pet, getLanguage());
+  const greeting = buildChatGreeting(pet, getLanguage(), activeMemories);
 
   window.ChatWidgetConfig = {
     mode: "realtime-ar",
@@ -2529,6 +2565,15 @@ localizeText(
 localizeText(userNameDisplay, "{name}'s Studio", { name: currentPetName });
 initLanguageControls();
 renderPromptRecipe();
+// Closing the tab mid-talk still gets the session remembered (keepalive fetch).
+window.addEventListener("pagehide", () => {
+  if (!activeChatPet) return;
+  rememberSession({
+    pet: activeChatPet,
+    language: getLanguage(),
+    transcript: collectTalkTranscript(),
+  });
+});
 window.addEventListener("languagechange", async () => {
   if (lastPets) renderPetGrid(lastPets);
   renderPetTypes();
@@ -2537,7 +2582,11 @@ window.addEventListener("languagechange", async () => {
     document.querySelector("#tryPromptBtn").click();
   if (activeChatPet && window.ChatWidgetConfig) {
     localizeChatControls(document.querySelector("#chatWidgetContainer"));
-    const greetingInstruction = buildChatGreeting(activeChatPet, getLanguage());
+    const greetingInstruction = buildChatGreeting(
+      activeChatPet,
+      getLanguage(),
+      activeMemories,
+    );
     window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
     if (
       window.ChatWidget &&

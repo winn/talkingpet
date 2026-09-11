@@ -1380,6 +1380,20 @@
           </form>
           <p id="couponMessage" class="coupon-message" role="status" hidden></p>
         </section>
+        <section class="memory-section">
+          <h3><span data-i18n="What your pets remember">What your pets remember</span></h3>
+          <p class="memory-hint">
+            <span
+              data-i18n="After each chat, your pet keeps a few things you told it. Forget anything you don't want kept."
+              >After each chat, your pet keeps a few things you told it. Forget
+              anything you don't want kept.</span
+            >
+          </p>
+          <ul id="memoryList" class="memory-list" aria-live="polite"></ul>
+          <button id="forgetAllBtn" type="button" class="text-button" hidden>
+            <span data-i18n="Forget everything">Forget everything</span>
+          </button>
+        </section>
         <div class="account-actions">
           <button id="openAdminBtn" type="button" class="secondary" hidden>
             <span data-i18n="Admin">Admin</span>
