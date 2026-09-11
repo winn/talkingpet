@@ -8,7 +8,7 @@ Requires Node.js 20.19+ or 22.12+.
 
 ```sh
 npm ci
-cp .env.example .env   # then fill in your Supabase URL and publishable key
+cp .env.example .env   # then fill in the Supabase and Stripe keys described below
 npm run dev
 ```
 
@@ -22,7 +22,7 @@ npm test
 npm run test:e2e
 ```
 
-Serve or deploy the `dist` directory. The build copies the model and painting-guide assets to their stable paths. Browser checks use installed Google Chrome, including mobile emulation and actual multi-touch input through the browser protocol.
+The end-to-end suite signs in through the real sign-in screen, so set `E2E_EMAIL` and `E2E_PASSWORD` in `.env` to an account created in the app (it needs a few points for the talk tests). Serve or deploy the `dist` directory. The build copies the model and painting-guide assets to their stable paths. Browser checks use installed Google Chrome, including mobile emulation and actual multi-touch input through the browser protocol.
 
 ## Creation and editing
 
@@ -63,9 +63,36 @@ Close More tools with its × button, Escape, or a tap outside; selecting an acti
 
 ## Storage and chat boundaries
 
-Pets are stored in Supabase, in the `public.pets` table (`src/pet-db.js`). Each row keeps the whole pet record as JSON, tagged with a per-browser device ID that is generated once and kept in `localStorage` (`paintmomo.deviceId`). The app sends that ID as an `x-device-id` header and row level security limits every read and write to rows with the same ID, so a browser still only sees the pets it created. Save success is reported only when the Supabase request completes; a failed save leaves the draft available for retry. Clearing site data creates a new device ID and hides earlier pets.
+Pets are stored in Supabase, in the `public.pets` table (`src/pet-db.js`). Each row keeps the whole pet record as JSON and belongs to the signed-in account; row level security limits every read and write to the owner. Save success is reported only when the Supabase request completes; a failed save leaves the draft available for retry. Pets follow the account to every device.
 
-The schema lives in `supabase/migrations/`. Apply it to your project with the Supabase CLI or the SQL editor, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env` (see `.env.example`). On Vercel, add the same two variables to the project environment.
+The schema lives in `supabase/migrations/`. Apply it to your project with the Supabase CLI or the SQL editor, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env` (see `.env.example`). On Vercel, add the same variables to the project environment.
+
+## Accounts, points, and payments
+
+Everyone signs in before using the studio (`src/auth.js`, `src/account.js`). Sign-in is Supabase Auth with email + password, plus Google when the Google provider is turned on in the Supabase dashboard (Authentication → Providers; add the site URL to the redirect allow-list).
+
+- **Points.** Every new account starts with 10 points. Talking to a pet costs 1 point (`TALK_COST` in `src/auth.js`), spent through the `spend_points` database function before the chat opens. The balance shows in the hub header; tapping it opens the account sheet.
+- **Ledger.** Every change is a row in `public.point_ledger` (sign-up, talk, admin grant, purchase). Purchases are idempotent on the Stripe session id.
+- **Admin.** Emails listed in `public.admin_emails` become admins on sign-up; admins can also promote others. Admins open the Admin screen from the account sheet to see every user, give or take points, and edit the point packs for sale.
+- **Buying points.** Point packs (`public.point_packs`) are sold through Stripe Checkout. `api/checkout.js` creates the session and `api/stripe/webhook.js` adds the points once Stripe reports payment. Until Stripe is configured the Buy buttons read “Soon”.
+
+### Server functions
+
+The `api/` folder holds Vercel functions (Web `Request`/`Response` handlers) and `server/` their shared helpers. During `npm run dev` the Vite plugin in `tools/dev-api.js` serves the same functions at `/api/*`, reading secrets from `.env`.
+
+| Variable | Used by | Purpose |
+| --- | --- | --- |
+| `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) | register, checkout, webhook | Instant sign-up without a confirmation email; crediting purchased points. Without it, sign-up falls back to Supabase's confirmation email. |
+| `STRIPE_SECRET_KEY` | checkout, webhook | Creates Checkout sessions and verifies webhooks. |
+| `STRIPE_WEBHOOK_SECRET` | webhook | Signing secret of the `checkout.session.completed` webhook endpoint (`https://<your-domain>/api/stripe/webhook`). |
+
+Set the same three variables on Vercel (`vercel env add NAME production`), then add the webhook endpoint in the Stripe dashboard. To test payments locally:
+
+```sh
+stripe listen --forward-to localhost:8090/api/stripe/webhook   # prints a whsec_… for .env
+```
+
+Use card `4242 4242 4242 4242` in test mode. The points appear on the hub a moment after Checkout returns to the app.
 
 The remote `chat-widget.js` is loaded as an opaque third-party dependency. Its source was not read or modified. Integration uses the existing config and lifecycle calls. The surrounding talk surface adopts the saved background and provides a connection-error message. The widget's redundant fullscreen button is hidden because this screen already occupies the viewport. Live calling still depends on the hosted service, network and microphone permission.
 

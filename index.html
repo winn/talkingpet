@@ -135,27 +135,52 @@
             ><svg><use href="#i-paw" /></svg></span
           >paint momo<span class="brand-dot">.</span></a
         >
-        <div
-          class="language-switch"
-          role="group"
-          aria-label="Language"
-          data-i18n-aria-label="Language"
-        >
-          <button
-            type="button"
-            data-language="en"
-            lang="en"
-            aria-pressed="true"
+        <div class="hub-nav-tools">
+          <div id="accountNav" class="account-nav" hidden>
+            <button
+              id="pointsBadge"
+              class="points-pill"
+              type="button"
+              aria-label="Your points"
+              data-i18n-aria-label="Your points"
+              title="Points"
+              data-i18n-title="Points"
+            >
+              <span class="points-star" aria-hidden="true">✦</span
+              ><span id="pointsValue">0</span>
+            </button>
+            <button
+              id="accountBtn"
+              class="account-btn"
+              type="button"
+              aria-label="Account"
+              data-i18n-aria-label="Account"
+            >
+              <span id="accountInitial">?</span>
+            </button>
+          </div>
+          <div
+            class="language-switch"
+            role="group"
+            aria-label="Language"
+            data-i18n-aria-label="Language"
           >
-            English</button
-          ><button
-            type="button"
-            data-language="th"
-            lang="th"
-            aria-pressed="false"
-          >
-            ไทย
-          </button>
+            <button
+              type="button"
+              data-language="en"
+              lang="en"
+              aria-pressed="true"
+            >
+              English</button
+            ><button
+              type="button"
+              data-language="th"
+              lang="th"
+              aria-pressed="false"
+            >
+              ไทย
+            </button>
+          </div>
         </div>
       </nav>
       <div class="hub-content">
@@ -253,7 +278,7 @@
               <span id="petCount">0</span>
             </h2>
             <p>
-              <span data-i18n="Saved on this device">Saved on this device</span>
+              <span data-i18n="Saved to your account">Saved to your account</span>
             </p>
           </div>
           <div id="petListGrid" class="pet-grid"></div>
@@ -267,6 +292,170 @@
             >A creative space to paint &amp; learn about AI</span
           >
         </footer>
+      </div>
+    </div>
+
+    <div id="loginScreen" class="screen centered login-screen hidden">
+      <section class="login-shell">
+        <div class="flow-header">
+          <a href="./" class="brand"
+            ><span class="brand-mark"
+              ><svg><use href="#i-paw" /></svg></span
+            >paint momo<span class="brand-dot">.</span></a
+          >
+          <div
+            class="language-switch"
+            role="group"
+            aria-label="Language"
+            data-i18n-aria-label="Language"
+          >
+            <button
+              type="button"
+              data-language="en"
+              lang="en"
+              aria-pressed="true"
+            >
+              English</button
+            ><button
+              type="button"
+              data-language="th"
+              lang="th"
+              aria-pressed="false"
+            >
+              ไทย
+            </button>
+          </div>
+        </div>
+        <div class="step-kicker">
+          <span data-i18n="YOUR PETS, ANYWHERE">YOUR PETS, ANYWHERE</span>
+        </div>
+        <h1 id="loginTitle">
+          <span data-i18n="Sign in to meet your pets">Sign in to meet your pets</span>
+        </h1>
+        <p class="login-hint">
+          <span
+            data-i18n="Your pets and points follow your account on every device."
+            >Your pets and points follow your account on every device.</span
+          >
+        </p>
+        <p id="loginError" class="form-error" role="alert" hidden></p>
+        <button id="googleSignInBtn" type="button" class="secondary large google-btn">
+          <svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" />
+            <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.8-6.6 7.5l6.3 5.3C38.2 37.3 44 31.5 44 24c0-1.3-.1-2.7-.4-3.5z" />
+          </svg>
+          <span data-i18n="Continue with Google">Continue with Google</span>
+        </button>
+        <div class="login-divider" aria-hidden="true">
+          <span data-i18n="or use email">or use email</span>
+        </div>
+        <form id="loginForm" class="auth-form" novalidate>
+          <label for="loginEmail"><span data-i18n="Email">Email</span></label>
+          <input
+            id="loginEmail"
+            type="email"
+            autocomplete="email"
+            inputmode="email"
+            placeholder="you@email.com"
+            required
+          />
+          <label for="loginPassword"
+            ><span data-i18n="Password">Password</span></label
+          >
+          <input
+            id="loginPassword"
+            type="password"
+            autocomplete="current-password"
+            minlength="8"
+            required
+          />
+          <button id="loginSubmitBtn" type="submit" class="primary large">
+            <span data-i18n="Sign in">Sign in</span>
+          </button>
+        </form>
+        <p class="login-switch">
+          <span id="loginSwitchText" data-i18n="New here?">New here?</span>
+          <button id="loginModeBtn" type="button" class="text-button">
+            <span data-i18n="Create an account">Create an account</span>
+          </button>
+        </p>
+        <p class="login-perk">
+          <span data-i18n="New accounts start with 10 free points."
+            >New accounts start with 10 free points.</span
+          >
+        </p>
+      </section>
+    </div>
+
+    <div id="adminScreen" class="screen admin-screen hidden">
+      <nav class="hub-nav">
+        <a href="./" class="brand"
+          ><span class="brand-mark"
+            ><svg><use href="#i-paw" /></svg></span
+          >paint momo<span class="brand-dot">.</span></a
+        >
+        <span class="admin-tag">Admin</span>
+        <button id="adminBackBtn" type="button" class="secondary admin-back">
+          <span data-i18n="← My pets">← My pets</span>
+        </button>
+      </nav>
+      <div class="hub-content admin-content">
+        <div class="admin-tabs" role="tablist" aria-label="Admin sections">
+          <button type="button" role="tab" data-admin-tab="users" aria-selected="true">
+            Users
+          </button>
+          <button type="button" role="tab" data-admin-tab="packs" aria-selected="false">
+            Point packs
+          </button>
+        </div>
+        <p id="adminError" class="form-error" role="alert" hidden></p>
+        <p id="adminNote" class="admin-note" role="status" hidden></p>
+        <section id="adminUsersPanel" class="admin-panel">
+          <h2>Users</h2>
+          <p class="admin-lead">
+            Everyone who signed in, with their point balance. Type a number and
+            press Give to add points; a negative number takes points back.
+          </p>
+          <div class="admin-toolbar">
+            <input
+              id="adminUserSearch"
+              type="search"
+              placeholder="Search by email"
+              aria-label="Search users by email"
+            />
+            <span id="adminUserCount" class="admin-count"></span>
+            <button id="adminRefreshBtn" type="button" class="secondary">
+              Refresh
+            </button>
+          </div>
+          <div id="adminUserList" class="admin-list"></div>
+        </section>
+        <section id="adminPacksPanel" class="admin-panel" hidden>
+          <h2>Point packs</h2>
+          <p class="admin-lead">
+            What people can buy. Prices are charged through Stripe Checkout and
+            points land in the buyer's account after payment.
+          </p>
+          <form id="packForm" class="pack-form">
+            <h3 id="packFormTitle">New point pack</h3>
+            <div class="pack-form-grid">
+              <label>Label<input name="label" type="text" maxlength="60" required /></label>
+              <label>Points<input name="points" type="number" min="1" step="1" required /></label>
+              <label>Price<input name="price" type="number" min="0.5" step="0.01" required /></label>
+              <label>Currency<input name="currency" type="text" maxlength="3" value="usd" /></label>
+              <label>Badge<input name="badge" type="text" maxlength="24" placeholder="Most popular" /></label>
+              <label>Sort<input name="sort" type="number" step="1" value="99" /></label>
+              <label class="pack-form-check"><input name="active" type="checkbox" checked />Visible to buyers</label>
+            </div>
+            <div class="pack-form-actions">
+              <button id="packCancelBtn" type="button" class="secondary" hidden>Cancel</button>
+              <button type="submit" class="primary">Save pack</button>
+            </div>
+          </form>
+          <div id="adminPackList" class="admin-list"></div>
+        </section>
       </div>
     </div>
 
@@ -993,6 +1182,62 @@
         hidden
       ></div>
       <div id="chatStatus" class="chat-status" role="status"></div>
+    </div>
+    <div
+      id="accountModal"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="accountTitle"
+    >
+      <div class="dialog-card account-card">
+        <button
+          id="closeAccountBtn"
+          type="button"
+          class="close-x"
+          aria-label="Close"
+          data-i18n-aria-label="Close"
+        >
+          ×
+        </button>
+        <div class="account-identity">
+          <span id="accountAvatar" class="account-avatar">?</span>
+          <div>
+            <h2 id="accountTitle">
+              <span data-i18n="Your account">Your account</span>
+            </h2>
+            <p id="accountEmail" class="account-email"></p>
+          </div>
+        </div>
+        <div class="points-panel">
+          <span class="little-label"><span data-i18n="POINTS">POINTS</span></span>
+          <p class="points-big"><span id="accountPoints">0</span></p>
+          <p class="points-note">
+            <span data-i18n="Each chat with a pet uses 1 point."
+              >Each chat with a pet uses 1 point.</span
+            >
+          </p>
+        </div>
+        <p id="accountNotice" class="account-notice" role="status" hidden></p>
+        <section class="packs-section">
+          <h3><span data-i18n="Get more points">Get more points</span></h3>
+          <div id="packList" class="pack-list"></div>
+          <p id="packsHint" class="packs-hint" hidden>
+            <span
+              data-i18n="Buying points is not set up yet. Ask an admin for points."
+              >Buying points is not set up yet. Ask an admin for points.</span
+            >
+          </p>
+        </section>
+        <div class="account-actions">
+          <button id="openAdminBtn" type="button" class="secondary" hidden>
+            <span data-i18n="Admin">Admin</span>
+          </button>
+          <button id="signOutBtn" type="button" class="text-button">
+            <span data-i18n="Sign out">Sign out</span>
+          </button>
+        </div>
+      </div>
     </div>
     <div
       id="deleteModal"

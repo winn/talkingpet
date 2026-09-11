@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 const stubChat = async (page) =>
   page.route("https://webavatar.didthat.cc/chat-widget.js", (route) =>
     route.fulfill({

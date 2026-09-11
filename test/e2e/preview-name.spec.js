@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 const pixels = (page) =>
   page.locator("#paintCanvas").evaluate((c) => c.toDataURL());
 const pets = (page) =>

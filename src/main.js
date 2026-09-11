@@ -19,6 +19,8 @@ import {
   petGender,
 } from "./pet-configs.js";
 import { getAllPets, getPetById, savePet, deletePetById } from "./pet-db.js";
+import { getSession } from "./auth.js";
+import { initAccount, showLogin, spendForTalk } from "./account.js";
 import { createPetVrmUrl, revokeAllPetVrmUrls } from "./vrm-reconstruct.js";
 import { capture360Frames, mount360Rotator } from "./preview-360.js";
 
@@ -246,6 +248,12 @@ const vrmReady = initVrm().catch(() => {
     "The 3D view could not start. You can still use the coloring sheet.",
   );
 });
+initAccount({
+  onSignedIn: () => loadPetHub(),
+  onSignedOut: () => loadPetHub(),
+  onAdminClosed: () => loadPetHub(),
+  notify: (message, params) => notify(message, params),
+});
 loadPetHub();
 initPromptWorkshop();
 initStudioExtras();
@@ -337,6 +345,12 @@ async function loadPetHub() {
   personalityModal.classList.add("hidden");
   personalityModal.classList.remove("grid");
 
+  if (!(await getSession().catch(() => null))) {
+    renderPetGrid([]);
+    showLogin();
+    return;
+  }
+
   try {
     const pets = await getAllPets();
     renderPetGrid(pets);
@@ -396,7 +410,7 @@ function renderPetGrid(pets) {
       card
         .querySelector(".talk-btn")
         .addEventListener("click", () =>
-          launchPetChat(pet).catch(() =>
+          startTalk(pet).catch(() =>
             notify("Your pet could not connect. Please try again."),
           ),
         );
@@ -604,7 +618,7 @@ async function handleSavePet({ colorsOnly = false } = {}) {
     if (wasNew && !colorsOnly) {
       localizeText(savingText, "Your friend is ready. Let’s say hello…");
       try {
-        await launchPetChat(saved);
+        if (!(await startTalk(saved))) await loadPetHub();
       } catch {
         await loadPetHub();
         notify("Your pet is saved. Chat could not connect. Try Talk again.");
@@ -626,6 +640,13 @@ async function handleSavePet({ colorsOnly = false } = {}) {
     saveInProgress = false;
     savePetBtn.disabled = false;
   }
+}
+
+/** Spend a point, then open the chat. Resolves false when the balance is too low. */
+async function startTalk(pet) {
+  if (!(await spendForTalk())) return false;
+  await launchPetChat(pet);
+  return true;
 }
 
 export async function launchPetChat(pet) {
@@ -2050,9 +2071,9 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function notify(message) {
+function notify(message, params = {}) {
   const toast = document.querySelector("#toast");
-  localizeText(toast, message);
+  localizeText(toast, message, params);
   toast.classList.remove("hidden");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.add("hidden"), 4500);
@@ -2311,8 +2332,11 @@ function initStudioExtras() {
     deleteModal,
     document.querySelector("#leaveModal"),
     savingOverlay,
+    document.querySelector("#accountModal"),
+    document.querySelector("#loginScreen"),
     talkScreen,
     personalityModal,
+    document.querySelector("#adminScreen"),
     welcomeScreen,
     selectPetTypeScreen,
     petHubScreen,

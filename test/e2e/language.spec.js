@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 const switchTo = async (page, lang) => {
   const button = page.locator(`[data-language="${lang}"]:not([inert] *)`);
   await expect(button).toHaveCount(1);

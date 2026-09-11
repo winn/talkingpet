@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { cpSync } from "node:fs";
+import { devApi } from "./tools/dev-api.js";
 
 export default defineConfig({
   server: {
@@ -9,6 +10,7 @@ export default defineConfig({
     ],
   },
   plugins: [
+    devApi(),
     {
       name: "pet-assets",
       closeBundle() {
@@ -18,4 +20,3 @@ export default defineConfig({
   ],
   build: { chunkSizeWarningLimit: 1000 },
 });
-

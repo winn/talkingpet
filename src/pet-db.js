@@ -1,16 +1,13 @@
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase, getSession } from "./auth.js";
+
+/**
+ * Pets live in Supabase (`public.pets`), one JSON record per row, scoped to
+ * the signed-in account by row level security. The per-browser device id is
+ * still recorded for diagnostics.
+ */
 
 const TABLE_NAME = "pets";
 const DEVICE_ID_KEY = "paintmomo.deviceId";
-const DEVICE_HEADER = "x-device-id";
-
-let clientPromise = null;
-
-function readEnv(name) {
-  const env = import.meta.env || {};
-  const value = env[name];
-  return typeof value === "string" ? value.trim() : "";
-}
 
 function readDeviceId() {
   if (typeof localStorage === "undefined") return null;
@@ -29,36 +26,14 @@ export function getDeviceId() {
   return readDeviceId();
 }
 
-export function openPetDb() {
-  if (clientPromise) return clientPromise;
-  clientPromise = new Promise((resolve, reject) => {
-    const url = readEnv("VITE_SUPABASE_URL");
-    const key = readEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
-    if (!url || !key) {
-      return reject(
-        new Error(
-          "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.",
-        ),
-      );
-    }
-    const deviceId = readDeviceId();
-    if (!deviceId) {
-      return reject(new Error("Device storage is not available."));
-    }
-    try {
-      const client = createClient(url, key, {
-        auth: { persistSession: false, autoRefreshToken: false },
-        global: { headers: { [DEVICE_HEADER]: deviceId } },
-      });
-      resolve({ client, deviceId });
-    } catch (err) {
-      reject(err);
-    }
-  });
-  clientPromise.catch(() => {
-    clientPromise = null;
-  });
-  return clientPromise;
+/** Resolves { client, deviceId, userId }. Rejects when not configured or signed out. */
+export async function openPetDb() {
+  const client = getSupabase();
+  const deviceId = readDeviceId();
+  if (!deviceId) throw new Error("Device storage is not available.");
+  const session = await getSession();
+  if (!session?.user) throw new Error("Sign in to see your pets.");
+  return { client, deviceId, userId: session.user.id };
 }
 
 function toRecord(row) {
@@ -77,11 +52,11 @@ function throwIfError(error, fallback) {
 }
 
 export async function getAllPets() {
-  const { client, deviceId } = await openPetDb();
+  const { client, userId } = await openPetDb();
   const { data, error } = await client
     .from(TABLE_NAME)
     .select("id, data, created_at, updated_at")
-    .eq("device_id", deviceId)
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
   throwIfError(error, "Could not load pets");
   return (data || []).map(toRecord);
@@ -89,23 +64,20 @@ export async function getAllPets() {
 
 export async function getPetById(id) {
   if (!id) return null;
-  const { client, deviceId } = await openPetDb();
+  const { client, userId } = await openPetDb();
   const { data, error } = await client
     .from(TABLE_NAME)
     .select("id, data, created_at, updated_at")
-    .eq("device_id", deviceId)
+    .eq("user_id", userId)
     .eq("id", id)
     .maybeSingle();
   throwIfError(error, "Could not load pet");
   return toRecord(data);
 }
 
-// The pets table keys rows by (owner_key, id), where owner_key is a generated
-// column equal to the account id or, for browsers without an account, the
-// device id. Rows written here carry only the device id.
 export async function savePet(pet) {
   if (!pet || !pet.id) throw new Error("Pet must have an id");
-  const { client, deviceId } = await openPetDb();
+  const { client, deviceId, userId } = await openPetDb();
   const record = {
     ...pet,
     updatedAt: Date.now(),
@@ -114,6 +86,7 @@ export async function savePet(pet) {
   const { error } = await client.from(TABLE_NAME).upsert(
     {
       id: record.id,
+      user_id: userId,
       device_id: deviceId,
       data: record,
       created_at: record.createdAt,
@@ -127,11 +100,11 @@ export async function savePet(pet) {
 
 export async function deletePetById(id) {
   if (!id) return false;
-  const { client, deviceId } = await openPetDb();
+  const { client, userId } = await openPetDb();
   const { error } = await client
     .from(TABLE_NAME)
     .delete()
-    .eq("device_id", deviceId)
+    .eq("user_id", userId)
     .eq("id", id);
   throwIfError(error, "Storage request failed");
   return true;
