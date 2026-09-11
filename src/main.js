@@ -387,11 +387,13 @@ function renderPetGrid(pets) {
       const config = getPetConfig(pet.petType, petGender(pet));
       const card = document.createElement("article");
       card.className = "pet-card";
-      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div><span class="spin-hint">${t("Drag to turn ↔")}</span></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
+      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
       applyBackdrop(
         card.querySelector(".pet-preview"),
         normalizeBackground(pet.backgroundColor),
-        resolveBackgroundId(pet.backgroundId),
+        // Preview frames already bake in a solid ground; a room image behind
+        // them only peeks at the sides and looks broken.
+        null,
       );
       card.querySelector(".pet-description").textContent = pet.promptRecipe
         ? `${recipeChoice(normalizeRecipe(pet.promptRecipe), "vibe", getLanguage()).label} · ${recipeChoice(normalizeRecipe(pet.promptRecipe), "activity", getLanguage()).label}`
@@ -404,7 +406,6 @@ function renderPetGrid(pets) {
         img.src = config.previewUrl;
         img.alt = pet.name;
         rotator.appendChild(img);
-        card.querySelector(".spin-hint").remove();
       }
       card
         .querySelector(".delete-btn")
