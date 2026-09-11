@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <script>
+      // Prevent mobile browser viewport zooming (pinch/gesture zoom, trackpad ctrl-zoom)
+      // Custom 2D/3D pinch zoom is handled separately via Pointer Events on the canvases.
+      document.addEventListener("gesturestart", (e) => e.preventDefault(), {
+        passive: false,
+      });
+      document.addEventListener("gesturechange", (e) => e.preventDefault(), {
+        passive: false,
+      });
+      document.addEventListener("gestureend", (e) => e.preventDefault(), {
+        passive: false,
+      });
+      document.addEventListener(
+        "touchmove",
+        (e) => {
+          if (e.touches && e.touches.length > 1) e.preventDefault();
+        },
+        { passive: false },
+      );
+      document.addEventListener(
+        "wheel",
+        (e) => {
+          if (e.ctrlKey) e.preventDefault();
+        },
+        { passive: false },
+      );
+    </script>
+    <script>
+      // Early language setup to ensure correct toggles and lang attribute before bundle loads
+      (function () {
+        try {
+          var stored = localStorage.getItem("paintmomo.language");
+          var lang =
+            stored === "th" || stored === "en"
+              ? stored
+              : navigator.language &&
+                  navigator.language.toLowerCase().startsWith("th")
+                ? "th"
+                : "en";
+          document.documentElement.lang = lang;
+          var updateToggles = function () {
+            var buttons = document.querySelectorAll("[data-language]");
+            for (var i = 0; i < buttons.length; i++) {
+              buttons[i].setAttribute(
+                "aria-pressed",
+                String(buttons[i].getAttribute("data-language") === lang),
+              );
+            }
+          };
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", updateToggles);
+          } else {
+            updateToggles();
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#faf7ef" />
+    <meta
+      name="description"
+      content="Paint a little friend. Give them a big personality. A playful studio for creating pets and learning to prompt AI."
+    />
+    <title data-i18n="Paint Momo · Little pet, big imagination">
+      Paint Momo · Little pet, big imagination
+    </title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23d8ec6b'/%3E%3Ctext x='8' y='46' font-size='44'%3E🐾%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <svg
+      class="icon-library"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <symbol id="i-brush" viewBox="0 0 24 24">
+          <path
+            d="m9 12 9-9a2.8 2.8 0 0 1 4 4l-9 9M8 14c-3 0-4 2-4 4l-2 3c6 1 10-1 10-4a4 4 0 0 0-4-3Z"
+          />
+        </symbol>
+        <symbol id="i-spark" viewBox="0 0 24 24">
+          <path
+            d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5ZM20 2v4m-2-2h4"
+          />
+        </symbol>
+        <symbol id="i-chat" viewBox="0 0 24 24">
+          <path d="M21 11a8 8 0 0 1-8 8H7l-5 3V11a9 9 0 0 1 19 0Z" />
+          <path d="M7 10h10M7 14h6" />
+        </symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M4 12h16m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="i-undo" viewBox="0 0 24 24">
+          <path d="M9 4 3 10l6 6M3 10h11a7 7 0 0 1 7 7v3" />
+        </symbol>
+        <symbol id="i-eraser" viewBox="0 0 24 24">
+          <path
+            d="m3 14 10-11a2 2 0 0 1 3 0l5 5a2 2 0 0 1 0 3L11 21H8l-5-4a2 2 0 0 1 0-3ZM8 9l8 8M11 21h11"
+          />
+        </symbol>
+        <symbol id="i-fill" viewBox="0 0 24 24">
+          <path d="m4 3 14 11-8 8L1 13l10-10M2 13h16M21 14s-4 5-2 7 6 0 2-7Z" />
+        </symbol>
+        <symbol id="i-move" viewBox="0 0 24 24">
+          <path
+            d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"
+          />
+        </symbol>
+        <symbol id="i-paw" viewBox="0 0 24 24">
+          <path d="M6 17c0-2 4-6 6-6s6 4 6 6c0 5-4 2-6 2s-6 3-6-2Z" />
+          <ellipse cx="4" cy="9" rx="2" ry="3" />
+          <ellipse cx="9" cy="5" rx="2" ry="3" />
+          <ellipse cx="15" cy="5" rx="2" ry="3" />
+          <ellipse cx="20" cy="9" rx="2" ry="3" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div id="petHubScreen" class="screen hub-screen">
+      <nav class="hub-nav">
+        <a href="./" class="brand"
+          ><span class="brand-mark"
+            ><svg><use href="#i-paw" /></svg></span
+          >paint momo<span class="brand-dot">.</span></a
+        >
+        <div
+          class="language-switch"
+          role="group"
+          aria-label="Language"
+          data-i18n-aria-label="Language"
+        >
+          <button
+            type="button"
+            data-language="en"
+            lang="en"
+            aria-pressed="true"
+          >
+            English</button
+          ><button
+            type="button"
+            data-language="th"
+            lang="th"
+            aria-pressed="false"
+          >
+            ไทย
+          </button>
+        </div>
+      </nav>
+      <div class="hub-content">
+        <section class="hero">
+          <div class="hero-copy">
+            <span class="eyebrow"
+              ><span class="tiny-star">✳</span>
+              <span data-i18n="MADE OF YOUR IMAGINATION"
+                >MADE OF YOUR IMAGINATION</span
+              ></span
+            >
+            <h1>
+              <span data-i18n="Little pet.">Little pet.</span><br /><span
+                data-i18n="Big"
+                >Big</span
+              >
+              <span><span data-i18n="personality.">personality.</span></span>
+            </h1>
+            <p>
+              <span data-i18n="A splash of color. A sprinkle of you."
+                >A splash of color. A sprinkle of you.</span
+              ><br /><span data-i18n="Make a friend only you could imagine."
+                >Make a friend only you could imagine.</span
+              >
+            </p>
+            <button id="hubAdoptNewBtn" class="primary large">
+              <span data-i18n="Create a pet">Create a pet</span>
+              <svg><use href="#i-arrow" /></svg>
+            </button>
+            <div class="hero-caption">
+              <span data-i18n="You’re the artist. And the idea maker."
+                >You’re the artist. And the idea maker.</span
+              >
+            </div>
+          </div>
+          <div
+            class="hero-art"
+            aria-label="Mini Cat and Mini Dog ready for your imagination"
+            data-i18n-aria-label="Mini Cat and Mini Dog ready for your imagination"
+          >
+            <div class="orbit-doodle">✦</div>
+            <span class="hello-sticker"
+              ><span data-i18n="oh, hi you!">oh, hi you!</span></span
+            >
+            <div class="pet-cutout cat-cutout">
+              <img
+                src="./assets/minicat/portrait.png"
+                alt="A little white cat"
+                draggable="false"
+                data-i18n-alt="A little white cat"
+              />
+            </div>
+            <div class="pet-cutout dog-cutout">
+              <img
+                src="./assets/minidog/portrait.png"
+                alt="A little white dog"
+                draggable="false"
+                data-i18n-alt="A little white dog"
+              />
+            </div>
+            <span class="paint-sticker"
+              ><svg><use href="#i-brush" /></svg>
+              <span data-i18n="one of a kind">one of a kind</span></span
+            ><span class="hero-star">✳</span>
+          </div>
+        </section>
+        <div
+          class="journey"
+          aria-label="How it works"
+          data-i18n-aria-label="How it works"
+        >
+          <span
+            ><b>1</b><svg><use href="#i-paw" /></svg>
+            <span data-i18n="Pick a friend">Pick a friend</span></span
+          ><i>→</i
+          ><span
+            ><b>2</b><svg><use href="#i-brush" /></svg>
+            <span data-i18n="Add your colors">Add your colors</span></span
+          ><i>→</i
+          ><span
+            ><b>3</b><svg><use href="#i-spark" /></svg>
+            <span data-i18n="Dream up a personality"
+              >Dream up a personality</span
+            ></span
+          ><i>→</i
+          ><span
+            ><b>4</b><svg><use href="#i-chat" /></svg>
+            <span data-i18n="Say hello">Say hello</span></span
+          >
+        </div>
+        <section class="pet-collection">
+          <div class="section-heading">
+            <h2>
+              <span data-i18n="Your little crew">Your little crew</span>
+              <span id="petCount">0</span>
+            </h2>
+            <p>
+              <span data-i18n="Saved on this device">Saved on this device</span>
+            </p>
+          </div>
+          <div id="petListGrid" class="pet-grid"></div>
+        </section>
+        <footer class="hub-footer">
+          <span
+            ><span data-i18n="Made by you. Loved by Momo."
+              >Made by you. Loved by Momo.</span
+            ></span
+          ><span data-i18n="A creative space to paint &amp; learn about AI"
+            >A creative space to paint &amp; learn about AI</span
+          >
+        </footer>
+      </div>
+    </div>
+
+    <div id="selectPetTypeScreen" class="screen centered hidden">
+      <section class="selection-shell">
+        <div class="flow-header">
+          <button id="petTypeBackBtn" class="text-button">
+            <span data-i18n="← Your pets">← Your pets</span>
+          </button>
+          <div
+            class="language-switch"
+            role="group"
+            aria-label="Language"
+            data-i18n-aria-label="Language"
+          >
+            <button
+              type="button"
+              data-language="en"
+              lang="en"
+              aria-pressed="true"
+            >
+              English</button
+            ><button
+              type="button"
+              data-language="th"
+              lang="th"
+              aria-pressed="false"
+            >
+              ไทย
+            </button>
+          </div>
+        </div>
+        <div class="step-kicker">
+          <span data-i18n="01 / PICK A FRIEND">01 / PICK A FRIEND</span>
+        </div>
+        <h1>
+          <span data-i18n="Who’s your new buddy?">Who’s your new buddy?</span>
+        </h1>
+        <p>
+          <span
+            data-i18n="Start with a little friend. Make them completely you."
+            >Start with a little friend. Make them completely you.</span
+          >
+        </p>
+        <div id="petTypeListGrid" class="type-grid"></div>
+        <div class="selection-note">
+          <svg><use href="#i-spark" /></svg>
+          <span data-i18n="Colors first. Personality comes next!"
+            >Colors first. Personality comes next!</span
+          >
+        </div>
+      </section>
+    </div>
+    <div id="welcomeScreen" class="screen centered hidden">
+      <section class="name-shell">
+        <div class="flow-header">
+          <button id="nameBack" class="text-button">
+            <span data-i18n="← Choose a different pet"
+              >← Choose a different pet</span
+            >
+          </button>
+          <div
+            class="language-switch"
+            role="group"
+            aria-label="Language"
+            data-i18n-aria-label="Language"
+          >
+            <button
+              type="button"
+              data-language="en"
+              lang="en"
+              aria-pressed="true"
+            >
+              English</button
+            ><button
+              type="button"
+              data-language="th"
+              lang="th"
+              aria-pressed="false"
+            >
+              ไทย
+            </button>
+          </div>
+        </div>
+        <div class="name-preview">
+          <img
+            id="namePetPreview"
+            src="./assets/minicat/portrait.png"
+            alt="Your new friend"
+            data-i18n-alt="Your new friend"
+          /><span
+            ><span data-i18n="Nice to meet you!">Nice to meet you!</span></span
+          >
+        </div>
+        <div class="step-kicker">
+          <span data-i18n="A LITTLE INTRODUCTION">A LITTLE INTRODUCTION</span>
+        </div>
+        <h1><span data-i18n="What’s my name?">What’s my name?</span></h1>
+        <label for="nameInput"
+          ><span data-i18n="Your pet’s name">Your pet’s name</span></label
+        ><input
+          id="nameInput"
+          type="text"
+          value="Momo"
+          maxlength="24"
+          autocomplete="off"
+        />
+        <div class="name-presets">
+          <button data-name="Momo">Momo</button
+          ><button data-name="Mochi">Mochi</button
+          ><button data-name="Noodle">Noodle</button
+          ><button data-name="Pip">Pip</button>
+        </div>
+        <button id="startBtn" class="primary large">
+          <span data-i18n="Let’s paint">Let’s paint</span>
+          <svg><use href="#i-arrow" /></svg>
+        </button>
+      </section>
+    </div>
+
+    <header class="studio-header">
+      <button
+        id="headerBackToHubBtn"
+        class="text-button"
+        aria-label="← My pets"
+        data-i18n-aria-label="← My pets"
+      >
+        <span data-i18n="← My pets">← My pets</span>
+      </button>
+      <div
+        class="language-switch"
+        role="group"
+        aria-label="Language"
+        data-i18n-aria-label="Language"
+      >
+        <button type="button" data-language="en" lang="en" aria-pressed="true">
+          English</button
+        ><button
+          type="button"
+          data-language="th"
+          lang="th"
+          aria-pressed="false"
+        >
+          ไทย
+        </button>
+      </div>
+      <div class="studio-title">
+        <span class="step-kicker"
+          ><span data-i18n="02 / COLOR STUDIO">02 / COLOR STUDIO</span></span
+        ><strong id="userNameDisplay">Momo’s studio</strong>
+      </div>
+      <button id="nextPersonalityBtn" class="primary">
+        <span data-i18n="Next: personality">Next: personality</span>
+        <svg><use href="#i-arrow" /></svg>
+      </button>
+    </header>
+    <main class="studio">
+      <div
+        class="mobile-tabs"
+        role="group"
+        aria-label="Painting view"
+        data-i18n-aria-label="Painting view"
+      >
+        <button id="toggle3DBtn" aria-pressed="true">
+          <span data-i18n="Paint your pet">Paint your pet</span></button
+        ><button id="toggle2DBtn" aria-pressed="false">
+          <span data-i18n="Coloring sheet">Coloring sheet</span>
+        </button>
+      </div>
+      <aside
+        class="toolbox"
+        aria-label="Painting tools"
+        data-i18n-aria-label="Painting tools"
+      >
+        <div class="tool-group">
+          <span class="tool-heading"
+            ><span data-i18n="MAKE YOUR MARK">MAKE YOUR MARK</span></span
+          >
+          <div class="tool-list">
+            <button class="tool active" data-tool="brush" aria-pressed="true">
+              <svg><use href="#i-brush" /></svg
+              ><span><span data-i18n="Brush">Brush</span></span></button
+            ><button class="tool" data-tool="softBrush" aria-pressed="false">
+              <span class="soft-icon">●</span
+              ><span><span data-i18n="Soft">Soft</span></span></button
+            ><button class="tool" data-tool="fill" aria-pressed="false">
+              <svg><use href="#i-fill" /></svg
+              ><span><span data-i18n="Fill">Fill</span></span></button
+            ><button class="tool" data-tool="eraser" aria-pressed="false">
+              <svg><use href="#i-eraser" /></svg
+              ><span><span data-i18n="Erase">Erase</span></span></button
+            ><button class="tool" data-tool="move" aria-pressed="false">
+              <svg><use href="#i-move" /></svg
+              ><span><span data-i18n="Move">Move</span></span>
+            </button>
+          </div>
+        </div>
+        <div id="sizePopover" class="brush-setting">
+          <label for="popoverBrushSize"
+            ><span data-i18n="Brush size">Brush size</span>
+            <output id="brushSizeValue">28</output></label
+          ><input
+            id="popoverBrushSize"
+            type="range"
+            min="6"
+            max="100"
+            value="28"
+          />
+        </div>
+        <div class="palette-group">
+          <span class="tool-heading"
+            ><span data-i18n="A LITTLE COLOR">A LITTLE COLOR</span></span
+          >
+          <div class="palette">
+            <button
+              class="preset-color"
+              data-color="#ef7189"
+              style="--swatch: #ef7189"
+              aria-label="Rose pink"
+              data-i18n-aria-label="Rose pink"
+            ></button
+            ><button
+              class="preset-color"
+              data-color="#ffb569"
+              style="--swatch: #ffb569"
+              aria-label="Peach orange"
+              data-i18n-aria-label="Peach orange"
+            ></button
+            ><button
+              class="preset-color"
+              data-color="#f3d957"
+              style="--swatch: #f3d957"
+              aria-label="Sunny yellow"
+              data-i18n-aria-label="Sunny yellow"
+            ></button
+            ><button
+              class="preset-color"
+              data-color="#99cba4"
+              style="--swatch: #99cba4"
+              aria-label="Leaf green"
+              data-i18n-aria-label="Leaf green"
+            ></button
+            ><button
+              class="preset-color"
+              data-color="#8dc9e8"
+              style="--swatch: #8dc9e8"
+              aria-label="Sky blue"
+              data-i18n-aria-label="Sky blue"
+            ></button
+            ><button
+              class="preset-color"
+              data-color="#b6a1e6"
+              style="--swatch: #b6a1e6"
+              aria-label="Lilac purple"
+              data-i18n-aria-label="Lilac purple"
+            ></button
+            ><button
+              class="preset-color"
+              data-color="#535064"
+              style="--swatch: #535064"
+              aria-label="Ink gray"
+              data-i18n-aria-label="Ink gray"
+            ></button
+            ><button
+              class="preset-color"
+              data-color="#ffffff"
+              style="--swatch: #ffffff"
+              aria-label="White"
+              data-i18n-aria-label="White"
+            ></button>
+          </div>
+          <label class="custom-color"
+            ><span data-i18n="Rainbow picker">Rainbow picker</span>
+            <input
+              id="colorWheel"
+              type="color"
+              value="#ef7189"
+              aria-label="Custom paint color"
+              data-i18n-aria-label="Custom paint color"
+          /></label>
+        </div>
+        <details class="more-tools">
+          <summary><span data-i18n="More tools">More tools</span></summary>
+          <button
+            id="closeMoreTools"
+            aria-label="Close tools"
+            data-i18n-aria-label="Close tools"
+          >
+            ×
+          </button>
+          <button id="toggleMirrorBtn" aria-pressed="false">
+            <span data-i18n="↔ Mirror painting">↔ Mirror painting</span></button
+          ><button id="uploadImageBtn">
+            <span data-i18n="＋ Add a picture">＋ Add a picture</span></button
+          ><input
+            type="file"
+            id="imageUpload"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+          /><button id="clearCanvas">
+            <span data-i18n="Start colors over">Start colors over</span>
+          </button>
+        </details>
+      </aside>
+      <section id="panel3D" class="paint-panel">
+        <canvas
+          id="vrmCanvas"
+          aria-label="Your 3D pet. Use Brush to paint, Move to turn. Pinch with two fingers to zoom."
+          data-i18n-aria-label="Your 3D pet. Use Brush to paint, Move to turn. Pinch with two fingers to zoom."
+        ></canvas>
+        <div class="panel-top">
+          <span class="panel-label"
+            ><span data-i18n="YOUR LITTLE MASTERPIECE"
+              >YOUR LITTLE MASTERPIECE</span
+            ></span
+          ><button id="centerCameraBtn" class="surface-button">
+            <span data-i18n="↺ Reset view">↺ Reset view</span>
+          </button>
+        </div>
+        <div id="modelStatus" class="model-status" role="status">
+          <span data-i18n="Getting your friend ready…"
+            >Getting your friend ready…</span
+          >
+        </div>
+        <div class="scene-bottom">
+          <p id="gestureHint">One finger paints · Two fingers turn & zoom</p>
+          <button
+            class="background-picker"
+            id="backdropToggle"
+            popovertarget="backdropPicker"
+          >
+            <span data-i18n="Backdrop">Backdrop</span>
+            <span id="backdropSwatch" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div id="backdropPicker" popover="auto" aria-labelledby="backdropTitle">
+          <div class="backdrop-picker-heading">
+            <strong id="backdropTitle" data-i18n="Choose a backdrop"
+              >Choose a backdrop</strong
+            >
+            <button
+              popovertarget="backdropPicker"
+              popovertargetaction="hide"
+              aria-label="Close backdrop picker"
+              data-i18n-aria-label="Close backdrop picker"
+            >
+              ×
+            </button>
+          </div>
+          <div
+            id="backdropOptions"
+            class="backdrop-options"
+            role="group"
+            aria-label="Backdrop"
+            data-i18n-aria-label="Backdrop"
+          ></div>
+          <label class="backdrop-color-row" for="bgColorPicker">
+            <span data-i18n="Choose a color">Choose a color</span>
+            <input
+              type="color"
+              id="bgColorPicker"
+              value="#e7ede4"
+              aria-label="Pet background color"
+              data-i18n-aria-label="Pet background color"
+            />
+          </label>
+        </div>
+      </section>
+      <section id="panel2D" class="sheet-panel">
+        <div class="sheet-heading">
+          <div>
+            <span class="panel-label"
+              ><span data-i18n="COLORING SHEET">COLORING SHEET</span></span
+            >
+            <p>
+              <span data-i18n="Your colors wrap around your pet."
+                >Your colors wrap around your pet.</span
+              >
+            </p>
+          </div>
+          <button
+            id="toggle3DPreviewBtn"
+            class="preview-toggle"
+            aria-pressed="false"
+            aria-controls="panel3D"
+          >
+            <svg aria-hidden="true"><use href="#i-paw" /></svg>
+            <span data-i18n="3D preview">3D preview</span>
+          </button>
+          <div class="sheet-zoom">
+            <button
+              id="zoom2DOutBtn"
+              aria-label="Zoom out of sheet"
+              data-i18n-aria-label="Zoom out of sheet"
+            >
+              −</button
+            ><button id="reset2DBtn"><span data-i18n="Fit">Fit</span></button
+            ><button
+              id="zoom2DInBtn"
+              aria-label="Zoom into sheet"
+              data-i18n-aria-label="Zoom into sheet"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div id="canvasContainer">
+          <div id="canvasTransformWrapper">
+            <canvas
+              id="paintCanvas"
+              width="1024"
+              height="1024"
+              aria-label="Paintable coloring sheet"
+              data-i18n-aria-label="Paintable coloring sheet"
+            ></canvas
+            ><canvas
+              id="guideCanvas"
+              width="1024"
+              height="1024"
+              aria-hidden="true"
+            ></canvas>
+            <div
+              id="symmetryLine"
+              class="hidden"
+              role="slider"
+              tabindex="0"
+              aria-label="Mirror line"
+              data-i18n-aria-label="Mirror line"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="50"
+              aria-orientation="horizontal"
+            >
+              <span aria-hidden="true">↔</span>
+            </div>
+            <div id="transformOverlay" class="hidden">
+              <img
+                id="overlayImage"
+                alt="Your picture"
+                data-i18n-alt="Your picture"
+              /><button
+                id="handleScale"
+                aria-label="Resize picture"
+                data-i18n-aria-label="Resize picture"
+              >
+                ↔</button
+              ><button
+                id="handleRotate"
+                aria-label="Rotate picture"
+                data-i18n-aria-label="Rotate picture"
+              >
+                ↻
+              </button>
+              <div class="stamp-actions">
+                <button id="commitImageBtn">
+                  <span data-i18n="Stamp">Stamp</span></button
+                ><button id="cancelImageBtn">
+                  <span data-i18n="Cancel">Cancel</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="sheet-help">
+          <span data-i18n="Drag to paint · Pinch to zoom · Move to pan"
+            >Drag to paint · Pinch to zoom · Move to pan</span
+          >
+        </p>
+      </section>
+      <div class="history-bar">
+        <button id="undoBtn">
+          <svg><use href="#i-undo" /></svg
+          ><span data-i18n="Undo">Undo</span></button
+        ><button id="redoBtn">
+          <svg class="flip"><use href="#i-undo" /></svg
+          ><span data-i18n="Redo">Redo</span></button
+        ><span
+          ><span data-i18n="Every little mark makes them yours."
+            >Every little mark makes them yours.</span
+          ></span
+        >
+      </div>
+    </main>
+
+    <div
+      id="personalityModal"
+      class="screen prompt-screen hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="promptTitle"
+    >
+      <section class="prompt-shell">
+        <div class="prompt-header">
+          <button id="closePersonalityBtn" class="text-button">
+            <span data-i18n="← Back">← Back</span></button
+          ><span class="step-kicker"
+            ><span data-i18n="03 / PERSONALITY LAB"
+              >03 / PERSONALITY LAB</span
+            ></span
+          >
+          <div
+            class="language-switch"
+            role="group"
+            aria-label="Language"
+            data-i18n-aria-label="Language"
+          >
+            <button
+              type="button"
+              data-language="en"
+              lang="en"
+              aria-pressed="true"
+            >
+              English</button
+            ><button
+              type="button"
+              data-language="th"
+              lang="th"
+              aria-pressed="false"
+            >
+              ไทย
+            </button>
+          </div>
+        </div>
+        <div class="prompt-intro">
+          <h1 id="promptTitle">
+            <span data-i18n="A little spark of">A little spark of</span>
+            <em><span data-i18n="you.">you.</span></em>
+          </h1>
+          <label class="prompt-name-field" for="promptPetName">
+            <span data-i18n="Your pet’s name">Your pet’s name</span>
+            <input
+              id="promptPetName"
+              type="text"
+              maxlength="24"
+              autocomplete="off"
+              value="Momo"
+            />
+          </label>
+          <p>
+            <span data-i18n="Teach">Teach</span>
+            <span id="personalityPetName">Momo</span>
+            <span data-i18n="how to be your friend. Tap ideas to build a"
+              >how to be your friend. Tap ideas to build a</span
+            >
+            <strong><span data-i18n="prompt">prompt</span></strong
+            >!
+          </p>
+        </div>
+        <div class="prompt-layout">
+          <div class="prompt-choices">
+            <fieldset>
+              <legend>
+                <b>1</b> <span data-i18n="Who am I?">Who am I?</span>
+              </legend>
+              <div id="genderChoices" class="choice-row"></div>
+            </fieldset>
+            <fieldset>
+              <legend>
+                <b>2</b>
+                <span data-i18n="What’s my vibe?">What’s my vibe?</span>
+              </legend>
+              <p>
+                <span data-i18n="Choose one personality."
+                  >Choose one personality.</span
+                >
+              </p>
+              <div id="vibeChoices" class="choice-grid"></div>
+            </fieldset>
+            <fieldset>
+              <legend>
+                <b>3</b>
+                <span data-i18n="What shall we do?">What shall we do?</span>
+              </legend>
+              <div id="activityChoices" class="choice-grid"></div>
+            </fieldset>
+            <fieldset>
+              <legend>
+                <b>4</b>
+                <span data-i18n="How should I talk?">How should I talk?</span>
+              </legend>
+              <div id="styleChoices" class="choice-row"></div>
+            </fieldset>
+            <button
+              id="customPromptBtn"
+              class="text-button custom-prompt-button"
+              aria-expanded="false"
+            >
+              <span data-i18n="＋ Add my own idea">＋ Add my own idea</span>
+            </button>
+            <div id="customPromptArea" class="hidden">
+              <label for="personalityInput"
+                ><span data-i18n="Your extra instruction"
+                  >Your extra instruction</span
+                ></label
+              ><textarea
+                id="personalityInput"
+                maxlength="300"
+                rows="3"
+                placeholder="Example: Ask me to invent a new planet with you."
+                data-i18n-placeholder="Example: Ask me to invent a new planet with you."
+              ></textarea
+              ><span class="input-caption"
+                ><span
+                  data-i18n="Try a clear action: “Ask me…”, “Help me…”, or “Tell me…”"
+                  >Try a clear action: “Ask me…”, “Help me…”, or “Tell
+                  me…”</span
+                ></span
+              >
+            </div>
+          </div>
+          <aside class="prompt-preview">
+            <div class="recipe-card">
+              <span class="eyebrow"
+                ><span data-i18n="✦ YOUR PROMPT RECIPE"
+                  >✦ YOUR PROMPT RECIPE</span
+                ></span
+              >
+              <h2>
+                <span data-i18n="You’re the director."
+                  >You’re the director.</span
+                >
+              </h2>
+              <p class="recipe-explainer">
+                <span data-i18n="A prompt is an instruction for AI."
+                  >A prompt is an instruction for AI.</span
+                ><br /><span data-i18n="Your choices tell your pet what to do."
+                  >Your choices tell your pet what to do.</span
+                >
+              </p>
+              <div id="promptRecipe" aria-live="polite"></div>
+              <button id="tryPromptBtn" class="secondary">
+                <svg><use href="#i-chat" /></svg>
+                <span data-i18n="Try my prompt">Try my prompt</span>
+              </button>
+              <div id="promptExample" class="hidden" aria-live="polite"></div>
+              <p class="recipe-tip">
+                <b><span data-i18n="Try this:">Try this:</span></b>
+                <span
+                  data-i18n="change the vibe, then try your prompt again. What feels different?"
+                  >change the vibe, then try your prompt again. What feels
+                  different?</span
+                >
+              </p>
+            </div>
+          </aside>
+        </div>
+        <div class="prompt-footer">
+          <button id="backToPaintBtn" class="secondary">
+            <span data-i18n="← Back to painting"
+              >← Back to painting</span
+            ></button
+          ><span
+            ><span data-i18n="You can change your ideas anytime."
+              >You can change your ideas anytime.</span
+            ></span
+          ><button id="savePetBtn" class="primary">
+            Save & say hello <svg><use href="#i-arrow" /></svg>
+          </button>
+        </div>
+      </section>
+    </div>
+    <div
+      id="savingOverlay"
+      class="overlay hidden"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="saving-card">
+        <span class="saving-flower">✳</span>
+        <h2 id="savingText">
+          <span data-i18n="Saving your little masterpiece…"
+            >Saving your little masterpiece…</span
+          >
+        </h2>
+        <p>
+          <span data-i18n="Keeping your colors and ideas together."
+            >Keeping your colors and ideas together.</span
+          >
+        </p>
+      </div>
+    </div>
+    <div id="talkScreen" class="screen talk-screen hidden">
+      <div class="talk-nav">
+        <button id="exitTalkBtn" class="surface-button">
+          <span data-i18n="← My pets">← My pets</span></button
+        ><span id="talkPetName"></span>
+        <div
+          class="language-switch"
+          role="group"
+          aria-label="Language"
+          data-i18n-aria-label="Language"
+        >
+          <button
+            type="button"
+            data-language="en"
+            lang="en"
+            aria-pressed="true"
+          >
+            English</button
+          ><button
+            type="button"
+            data-language="th"
+            lang="th"
+            aria-pressed="false"
+          >
+            ไทย
+          </button>
+        </div>
+      </div>
+      <div id="chatWidgetContainer"></div>
+      <div id="chatStatus" class="chat-status" role="status"></div>
+    </div>
+    <div
+      id="deleteModal"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deleteTitle"
+    >
+      <div class="dialog-card">
+        <span class="dialog-art">♡</span>
+        <h2 id="deleteTitle">
+          <span data-i18n="Say goodbye to">Say goodbye to</span>
+          <span id="deletePetName">Momo</span>?
+        </h2>
+        <p>
+          <span
+            data-i18n="This removes your pet, their colors, and their ideas from this device."
+            >This removes your pet, their colors, and their ideas from this
+            device.</span
+          >
+        </p>
+        <div class="dialog-actions">
+          <button id="cancelDeleteBtn" class="secondary">
+            <span data-i18n="Keep my pet">Keep my pet</span></button
+          ><button id="confirmDeleteBtn" class="danger">
+            <span data-i18n="Delete pet">Delete pet</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      id="leaveModal"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="leaveTitle"
+    >
+      <div class="dialog-card">
+        <h2 id="leaveTitle">
+          <span data-i18n="Keep your new colors?">Keep your new colors?</span>
+        </h2>
+        <p>
+          <span data-i18n="Save your painting before going back to your pets."
+            >Save your painting before going back to your pets.</span
+          >
+        </p>
+        <div class="dialog-actions">
+          <button id="stayPaintingBtn" class="secondary">
+            <span data-i18n="Keep painting">Keep painting</span></button
+          ><button id="savePaintingBtn" class="primary">
+            <span data-i18n="Save colors">Save colors</span>
+          </button>
+        </div>
+        <button id="discardPaintingBtn" class="text-button">
+          <span data-i18n="Leave without saving">Leave without saving</span>
+        </button>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite" class="hidden"></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
