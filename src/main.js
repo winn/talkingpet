@@ -40,6 +40,7 @@ import {
 import { attachSurfaceGestures } from "./surface-gestures.js";
 import { localizeChatControls } from "./chat-labels.js";
 import { initPreventPageZoom } from "./prevent-page-zoom.js";
+import { mountTalkControls } from "./talk-controls.js";
 import {
   BACKGROUNDS,
   normalizeBackgroundId,
@@ -73,6 +74,7 @@ let toastTimer;
 let modelLoadToken = 0;
 let chatLaunchToken = 0;
 let chatThemeObserver;
+let talkControls = null;
 let activeChatPet = null;
 let lastPets = null;
 let strokeSnapshot = null;
@@ -302,6 +304,8 @@ function initHubEvents() {
     chatLaunchToken++;
     activeChatPet = null;
     chatThemeObserver?.disconnect();
+    talkControls?.destroy();
+    talkControls = null;
     if (window.ChatWidget?.destroy) {
       try {
         await window.ChatWidget.destroy();
@@ -2430,7 +2434,20 @@ function watchChatSurface(backgroundColor, launchToken) {
     // Only inspect the rendered UI. The hosted widget's source is kept opaque.
     localizeChatControls(container);
     const canvas = container.querySelector("canvas");
-    if (canvas) localizeText(status, "");
+    if (canvas) {
+      localizeText(status, "");
+      if (talkControls && talkControls.canvas !== canvas) {
+        talkControls.destroy();
+        talkControls = null;
+      }
+      const controls = mountTalkControls({
+        canvas,
+        tray: document.querySelector("#talkActionTray"),
+        hint: document.querySelector("#talkGestureHint"),
+        win: window,
+      });
+      if (controls) talkControls = controls;
+    }
   };
   chatThemeObserver = new MutationObserver(update);
   chatThemeObserver.observe(container, {

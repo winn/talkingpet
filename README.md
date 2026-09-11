@@ -34,6 +34,15 @@ Serve or deploy the `dist` directory. The build copies the model and painting-gu
 - Tap **Backdrop** in the pet view to choose a solid color or one of six images: Sunny room, Flower sky, Magic world, Cozy apartment, Dreamy bedroom, and Sweet kitchen. The choice is saved per pet and restored in painting, saved previews, and talk. The saved color remains underneath as a fallback. Add future room images to `assets/backgrounds/` and register their stable IDs and labels in `src/backgrounds.js`, with Thai labels in `src/locales/th.js`.
 - Legacy `minicat_f`, `minicat_m`, `minidog_f`, and `minidog_m` records retain their gender/voice mapping. Pets without a room selection keep their saved solid color.
 
+## Talk mode controls
+
+While talking, the pet can be posed without involving the AI:
+
+- Drag with one finger or the mouse to turn the pet. Two fingers, a right button or Shift-drag move it. Pinch or the wheel change its size. Double tap or **Reset view** restores the default pose.
+- The tray at the bottom has **Moves** (wave, sawasdee, jump, spin, clap, yay, dance, laugh, think, look around, sleepy, relax) and **Faces** (happy, surprised, sad, angry, relaxed, calm). One tap plays the move or sets the expression immediately.
+
+These controls use the public `playAnimation` and `setEmotion` calls and the scene group the hosted widget exposes on `window.WebAvatar`. The widget's source is still not read or modified; if a widget update removes those globals the tray hides itself and chat keeps working. The moves are humanoid clips retargeted onto the pets, so the curated list in `src/talk-controls.js` favours ones that read well on four legs. Dragging is ignored in the widget's AR mode, where the device drives the camera.
+
 ## Controls
 
 On phones and compact landscape layouts, tap **3D preview** above the coloring sheet to show a small live pet. Tap again to hide it. The preview can rotate and zoom while the sheet keeps its painting tool, zoom, and undo history. Desktop keeps both full-size views.

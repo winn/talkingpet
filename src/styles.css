@@ -2998,3 +2998,98 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   background: transparent;
   font-size: 24px;
 }
+
+/* Talk-mode controls: gesture hint and one-tap action tray over the chat canvas. */
+.talk-gesture-hint {
+  position: absolute;
+  z-index: 140;
+  left: 16px;
+  top: calc(max(16px, env(safe-area-inset-top)) + 52px);
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #ffffffc9;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a4a40;
+  pointer-events: none;
+}
+.talk-action-tray {
+  position: absolute;
+  z-index: 140;
+  left: 12px;
+  right: 88px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+.talk-tray-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  scrollbar-width: none;
+  pointer-events: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.talk-tray-row::-webkit-scrollbar {
+  display: none;
+}
+.talk-tray-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5d5d52;
+  background: #ffffffc9;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+.talk-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #fffefbf0;
+  box-shadow: 0 4px 14px #00000014;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: #23231c;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+.talk-chip:hover,
+.talk-chip:focus-visible {
+  border-color: var(--lime, #d8ec6b);
+  outline: none;
+}
+.talk-chip:active {
+  transform: scale(0.96);
+}
+.talk-chip-reset {
+  align-self: flex-start;
+  margin-left: 2px;
+}
+@media (max-width: 640px) {
+  .talk-action-tray {
+    right: 76px;
+  }
+  .talk-chip {
+    min-height: 34px;
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+  .talk-gesture-hint {
+    font-size: 10px;
+  }
+}
