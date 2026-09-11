@@ -42,11 +42,13 @@ import {
 import { attachSurfaceGestures } from "./surface-gestures.js";
 import { localizeChatControls } from "./chat-labels.js";
 import { initPreventPageZoom } from "./prevent-page-zoom.js";
-import { mountTalkControls } from "./talk-controls.js";
+import { mountTalkControls, renderActionTray, getAvatarApi } from "./talk-controls.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
 import {
   BACKGROUNDS,
+  DEFAULT_BACKGROUND_ID,
   normalizeBackgroundId,
+  resolveBackgroundId,
   applyBackdrop,
 } from "./backgrounds.js";
 
@@ -388,7 +390,7 @@ function renderPetGrid(pets) {
       applyBackdrop(
         card.querySelector(".pet-preview"),
         normalizeBackground(pet.backgroundColor),
-        pet.backgroundId,
+        resolveBackgroundId(pet.backgroundId),
       );
       card.querySelector(".pet-description").textContent = pet.promptRecipe
         ? `${recipeChoice(normalizeRecipe(pet.promptRecipe), "vibe", getLanguage()).label} · ${recipeChoice(normalizeRecipe(pet.promptRecipe), "activity", getLanguage()).label}`
@@ -463,7 +465,7 @@ function startNewPetFlow() {
   promptOnly = false;
   dirty = false;
   resetStudio();
-  setBackground("#f7e8d9", "indoor-house");
+  setBackground("#f7e8d9", DEFAULT_BACKGROUND_ID);
   localizeText(nextPersonalityBtn, "Next: personality");
   currentPetId = null;
   currentPetName = "Momo";
@@ -489,7 +491,10 @@ async function openEditPetFlow(pet) {
   promptOnly = false;
   dirty = false;
   resetStudio();
-  setBackground(pet.backgroundColor, pet.backgroundId);
+  setBackground(
+    pet.backgroundColor,
+    resolveBackgroundId(pet.backgroundId),
+  );
   localizeText(nextPersonalityBtn, "Save colors");
   await vrmReady;
   currentPetId = pet.id;
@@ -689,12 +694,15 @@ export async function launchPetChat(pet) {
   if (launchToken !== chatLaunchToken) return;
   activeChatPet = pet;
   const backgroundColor = normalizeBackground(pet.backgroundColor);
+  const backgroundId = resolveBackgroundId(pet.backgroundId);
+  const widgetBackground = backgroundId ? "transparent" : backgroundColor;
   talkScreen.style.setProperty("--talk-background", backgroundColor);
   talkScreen.style.backgroundColor = backgroundColor;
+  applyBackdrop(talkScreen, backgroundColor, backgroundId);
   applyBackdrop(
     document.querySelector("#chatWidgetContainer"),
     backgroundColor,
-    pet.backgroundId,
+    backgroundId,
   );
   document.querySelector("#talkPetName").textContent = pet.name;
   localizeText(
@@ -721,7 +729,7 @@ export async function launchPetChat(pet) {
     avatarUrl: vrmBlobUrl,
     greetingInstruction: greeting,
     container: "#chatWidgetContainer",
-    backgroundColor,
+    backgroundColor: widgetBackground,
   };
 
   if (
@@ -733,7 +741,7 @@ export async function launchPetChat(pet) {
         widgetId: config.widgetId,
         avatarUrl: vrmBlobUrl,
         greetingInstruction: greeting,
-        backgroundColor,
+        backgroundColor: widgetBackground,
       });
       watchChatSurface(backgroundColor, launchToken);
       return;
@@ -2150,7 +2158,7 @@ function initBackdropPicker() {
   picker.addEventListener("toggle", position);
   new ResizeObserver(position).observe(picker);
   window.addEventListener("resize", position);
-  setBackground(bgColorPicker.value);
+  setBackground(bgColorPicker.value, DEFAULT_BACKGROUND_ID);
 }
 function resetStudio() {
   document.querySelector(".studio").classList.remove("show-preview");
@@ -2521,6 +2529,10 @@ window.addEventListener("languagechange", async () => {
     document.querySelector("#tryPromptBtn").click();
   if (activeChatPet && window.ChatWidgetConfig) {
     localizeChatControls(document.querySelector("#chatWidgetContainer"));
+    const tray = document.querySelector("#talkActionTray");
+    const api = getAvatarApi(window);
+    if (talkControls?.pose && tray && api)
+      renderActionTray(tray, api, talkControls.pose);
     const greetingInstruction = buildChatGreeting(activeChatPet, getLanguage());
     window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
     if (

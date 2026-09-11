@@ -1,4 +1,6 @@
 // Add future room images here; saved pets store only the stable ID.
+export const DEFAULT_BACKGROUND_ID = "indoor-house";
+
 export const BACKGROUNDS = [
   {
     id: "indoor-house",
@@ -38,6 +40,13 @@ export const BACKGROUNDS = [
 export function normalizeBackgroundId(id) {
   return BACKGROUNDS.some((background) => background.id === id) ? id : null;
 }
+
+/** Room image for pets that never chose a backdrop; solid (null) stays solid. */
+export function resolveBackgroundId(id, { fallback = DEFAULT_BACKGROUND_ID } = {}) {
+  if (id === null) return null;
+  return normalizeBackgroundId(id) || fallback;
+}
+
 export function applyBackdrop(element, color, id) {
   const background = BACKGROUNDS.find((background) => background.id === id);
   element.style.backgroundColor = color;

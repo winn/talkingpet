@@ -1385,6 +1385,9 @@ input[type="color"]::-webkit-color-swatch {
 .talk-screen {
   z-index: 130;
   background: var(--talk-background, #f7e8d9);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 .talk-nav {
   position: absolute;
@@ -3041,29 +3044,24 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   display: none;
 }
 .talk-tray-label {
-  flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #5d5d52;
-  background: #ffffffc9;
-  padding: 6px 8px;
-  border-radius: 10px;
+  display: none;
 }
 .talk-chip {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 38px;
-  padding: 6px 12px;
+  justify-content: center;
+  gap: 0;
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
   border: 2px solid #ffffff;
   border-radius: 999px;
   background: #fffefbf0;
   box-shadow: 0 4px 14px #00000014;
   font: inherit;
-  font-size: 13px;
+  font-size: 20px;
   font-weight: 800;
   color: #23231c;
   cursor: pointer;
@@ -3087,9 +3085,11 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
     right: 76px;
   }
   .talk-chip {
-    min-height: 34px;
-    font-size: 12px;
-    padding: 5px 10px;
+    width: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    font-size: 18px;
+    padding: 0;
   }
   .talk-gesture-hint {
     font-size: 10px;

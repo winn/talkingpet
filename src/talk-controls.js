@@ -212,40 +212,38 @@ function chip(item, onClick) {
   button.type = "button";
   button.className = "talk-chip";
   button.dataset.action = item.id;
-  button.innerHTML = `<span aria-hidden="true">${item.icon}</span><span data-i18n="${item.label}">${t(item.label)}</span>`;
+  const label = t(item.label);
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.innerHTML = `<span aria-hidden="true">${item.icon}</span>`;
   button.addEventListener("click", () => onClick(item));
   return button;
 }
 
 export function renderActionTray(tray, api, pose) {
   tray.replaceChildren();
-  const row = (labelKey, items, handler) => {
+  const row = (items, handler) => {
     const section = document.createElement("div");
     section.className = "talk-tray-row";
-    const label = document.createElement("span");
-    label.className = "talk-tray-label";
-    label.dataset.i18n = labelKey;
-    label.textContent = t(labelKey);
-    section.append(label);
     for (const item of items) section.append(chip(item, handler));
     return section;
   };
-  const view = row("View", [], () => {});
-  view.append(
-    chip({ id: "bigger", label: "Bigger", icon: "➕" }, () =>
-      pose.zoom(POSE_LIMITS.sizeStep),
-    ),
-    chip({ id: "smaller", label: "Smaller", icon: "➖" }, () =>
-      pose.zoom(1 / POSE_LIMITS.sizeStep),
-    ),
-    chip({ id: "reset-view", label: "Reset view", icon: "🎯" }, () =>
-      pose.reset(),
-    ),
+  const view = row(
+    [
+      { id: "bigger", label: "Bigger", icon: "➕" },
+      { id: "smaller", label: "Smaller", icon: "➖" },
+      { id: "reset-view", label: "Reset view", icon: "🎯" },
+    ],
+    (item) => {
+      if (item.id === "bigger") pose.zoom(POSE_LIMITS.sizeStep);
+      else if (item.id === "smaller") pose.zoom(1 / POSE_LIMITS.sizeStep);
+      else pose.reset();
+    },
   );
   tray.append(view);
   if (api.playAnimation) {
     tray.append(
-      row("Moves", TALK_ACTIONS, (item) => {
+      row(TALK_ACTIONS, (item) => {
         try {
           api.playAnimation(item.id);
         } catch (err) {
@@ -256,7 +254,7 @@ export function renderActionTray(tray, api, pose) {
   }
   if (api.setEmotion) {
     tray.append(
-      row("Faces", TALK_FACES, (item) => {
+      row(TALK_FACES, (item) => {
         try {
           api.setEmotion(item.id);
         } catch (err) {
