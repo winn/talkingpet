@@ -4,6 +4,8 @@ export function attachSurfaceGestures(element, callbacks) {
   const pointers = new Map();
   let mode = null;
   let previous = null;
+  const accepts =
+    callbacks.acceptsEvent || ((event) => event.target === element);
   const metrics = () => {
     const p = [...pointers.values()].slice(0, 2);
     return {
@@ -23,7 +25,7 @@ export function attachSurfaceGestures(element, callbacks) {
     };
   };
   const onDown = (event) => {
-    if (event.target !== element) return;
+    if (!accepts(event)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     pointers.set(event.pointerId, event);

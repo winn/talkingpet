@@ -43,7 +43,7 @@ import { attachSurfaceGestures } from "./surface-gestures.js";
 import { localizeChatControls } from "./chat-labels.js";
 import { initPreventPageZoom } from "./prevent-page-zoom.js";
 import { mountTalkControls } from "./talk-controls.js";
-import { ensureSfxLibrary, notePettingMotion, attachHoverRub } from "./pet-sounds.js";
+import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
 import {
   BACKGROUNDS,
   normalizeBackgroundId,
@@ -258,6 +258,13 @@ initAccount({
 loadPetHub();
 initPromptWorkshop();
 initStudioExtras();
+// One click/tap unlocks petting sounds for later hover playback.
+for (const type of ["pointerdown", "keydown"]) {
+  document.addEventListener(type, () => unlockPetSounds(), {
+    once: true,
+    capture: true,
+  });
+}
 
 // ----------------------------------------------------
 // UI Flow & Hub Coordination
@@ -456,7 +463,7 @@ function startNewPetFlow() {
   promptOnly = false;
   dirty = false;
   resetStudio();
-  setBackground("#e7ede4");
+  setBackground("#f7e8d9", "indoor-house");
   localizeText(nextPersonalityBtn, "Next: personality");
   currentPetId = null;
   currentPetName = "Momo";
@@ -2471,6 +2478,7 @@ function watchChatSurface(backgroundColor, launchToken) {
       }
       const controls = mountTalkControls({
         canvas,
+        surface: container,
         tray: document.querySelector("#talkActionTray"),
         hint: document.querySelector("#talkGestureHint"),
         win: window,

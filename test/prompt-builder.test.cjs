@@ -24,6 +24,6 @@ test("prompt recipe composes all selections and bounds custom text", async () =>
   assert.match(prompt, /give hints before revealing answers/);
   assert.match(prompt, /Talk about dinosaurs/);
   assert.equal(normalizeRecipe({ custom: "a".repeat(400) }).custom.length, 300);
-  assert.equal(normalizeBackground("bad"), "#e7ede4");
+  assert.equal(normalizeBackground("bad"), "#f7e8d9");
   assert.equal(normalizeBackground("#abc123"), "#abc123");
 });

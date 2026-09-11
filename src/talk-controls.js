@@ -112,6 +112,9 @@ export function attachPoseGestures(canvas, pose, options = {}) {
   canvas.style.cursor = "grab";
   const gestures = attachSurfaceGestures(canvas, {
     shouldNavigate: () => true,
+    acceptsEvent: (event) =>
+      event.target === canvas ||
+      (canvas.contains(event.target) && event.target.tagName === "CANVAS"),
     start() {},
     move() {},
     end() {},
@@ -208,15 +211,18 @@ export function renderActionTray(tray, api, pose) {
 const mounted = new WeakSet();
 
 // Idempotent: safe to call every time the widget's DOM changes.
-export function mountTalkControls({ canvas, tray, hint, win, onRub }) {
+// Prefer `surface` (the host container) for gestures: the widget canvas often
+// ignores pointer input, so the container receives the mouse.
+export function mountTalkControls({ canvas, surface, tray, hint, win, onRub }) {
   if (!canvas || mounted.has(canvas)) return null;
   const api = getAvatarApi(win);
   if (!api) return null;
   mounted.add(canvas);
   const pose = createPoseController(api.group);
-  const gestures = attachPoseGestures(canvas, pose, { isAr: api.isAr });
+  const gestureSurface = surface || canvas;
+  const gestures = attachPoseGestures(gestureSurface, pose, { isAr: api.isAr });
   const rub = onRub
-    ? attachHoverRub(canvas, {
+    ? attachHoverRub(gestureSurface, {
         onRub,
         isEnabled: () => !api.isAr(),
       })

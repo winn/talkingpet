@@ -22,6 +22,21 @@ let loadPromise = null;
 let travelPx = 0;
 let lastPlayedAt = 0;
 let activeAudio = null;
+let audioUnlocked = false;
+
+/** Browsers block sound until a click/tap; call this from any user gesture. */
+export function unlockPetSounds({ AudioCtor = globalThis.Audio } = {}) {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try {
+    const warm = new AudioCtor(
+      "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAGAAGn9AAAIwgJOTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+    );
+    warm.volume = 0.01;
+    const play = warm.play?.();
+    if (play?.catch) play.catch(() => {});
+  } catch (_) {}
+}
 
 export function pickFamilyClips(clips, petType, familyId) {
   const kind = normalizePetType(petType);
@@ -66,6 +81,7 @@ export function resetSfxLibrary() {
   loadPromise = null;
   travelPx = 0;
   lastPlayedAt = 0;
+  audioUnlocked = false;
   if (activeAudio) {
     try {
       activeAudio.pause();
@@ -76,6 +92,7 @@ export function resetSfxLibrary() {
 
 export function playClip(clip, { AudioCtor = globalThis.Audio } = {}) {
   if (!clip?.url || typeof AudioCtor !== "function") return null;
+  unlockPetSounds({ AudioCtor });
   try {
     if (activeAudio) {
       activeAudio.pause();

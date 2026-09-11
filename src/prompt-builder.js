@@ -244,5 +244,5 @@ export function buildChatGreeting(pet, language = "en") {
   return `${personality}\n\n${direction}`;
 }
 export function normalizeBackground(color) {
-  return /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#e7ede4";
+  return /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f7e8d9";
 }
