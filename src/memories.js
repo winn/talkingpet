@@ -196,8 +196,8 @@ export async function rememberSession({
 }
 
 /**
- * On-device fallback only when the LLM summarise API fails (network / key).
- * Does not override an intentional empty LLM result.
+ * On-device fallback when summarise fails or returns nothing new.
+ * Catches clear kid phrases so voice sessions still save something useful.
  */
 export async function rememberFromRules({ pet, transcript }) {
   if (!pet || !transcript?.some((t) => t.role === "user")) return [];

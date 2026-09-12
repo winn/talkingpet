@@ -61,6 +61,7 @@ import {
 import {
   clearCapturedTurns,
   getCapturedTurns,
+  harvestWidgetHistories,
   pushCapturedTurn,
   refreshChatCapture,
   startChatCapture,
@@ -387,6 +388,7 @@ async function endTalkSession({ extract = false } = {}) {
   clearCapturedTurns();
   sessionTranscriptBackup = [];
   sessionRememberDone = false;
+  widgetUserMessagesHooked = false;
   stopChatCapture();
   chatLaunchToken++;
   activeChatPet = null;
@@ -420,6 +422,8 @@ function currentTurns() {
   );
 }
 function collectTalkTranscript() {
+  harvestWidgetHistories();
+  refreshChatCapture();
   const turns = currentTurns().map(({ role, text }) => ({ role, text }));
   if (turns.some((turn) => turn.role === "user")) {
     sessionTranscriptBackup = turns;
@@ -507,7 +511,7 @@ async function sendTypedMessage(text) {
 
 /**
  * End-of-session memory: LLM decides what to keep (and invents keys).
- * On-device rules run only if the summarise API fails. Hangup keeps the log
+ * Local rules fill gaps when the model returns nothing. Hangup keeps the log
  * so leave/retry can still save; leave clears after.
  */
 async function extractChatToMemory({ silent = false, clear = true } = {}) {
@@ -530,20 +534,22 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
     });
     llmOk = !result.failed;
     added = result.added;
-    if (result.failed) {
+    // Gap-fill with on-device rules when the API fails OR the model stores nothing.
+    if (result.failed || !added.length) {
       const local = await rememberFromRules({ pet, transcript });
-      added = local.filter((row) => {
+      const novel = local.filter((row) => {
         const prev = activeMemories.find((m) => m.key === row.key);
-        return (
-          !prev ||
-          String(prev.value).toLowerCase() !== String(row.value).toLowerCase()
-        );
+        const already =
+          added.some((a) => a.key === row.key) ||
+          (prev &&
+            String(prev.value).toLowerCase() ===
+              String(row.value).toLowerCase());
+        return !already;
       });
+      added = [...added, ...novel];
       if (!added.length && local.length) sessionRememberDone = true;
-    } else if (!added.length) {
-      // Model chose nothing new — do not override with local rules.
-      sessionRememberDone = true;
     }
+    if (llmOk && !added.length) sessionRememberDone = true;
   }
   if (launchToken !== chatLaunchToken) return 0;
   for (const row of added) {
@@ -551,8 +557,6 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
     noteMemorySaved(row);
   }
   if (added.length) sessionRememberDone = true;
-  // Clear after a successful LLM pass (even if empty) or a successful save.
-  // Keep the log when summarise failed so leave can retry.
   const shouldClear =
     clear && (added.length > 0 || !hasUser || llmOk || sessionRememberDone);
   if (shouldClear) {
@@ -563,14 +567,21 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
     notify("Saved to memory: {n} new things. Chat cleared.", {
       n: added.length,
     });
-  else if (!silent)
-    notify(
-      hasUser && !llmOk && !sessionRememberDone
-        ? "Could not save new memories yet. Try again from My pets."
-        : "Chat cleared. Anything clear was already remembered.",
-    );
-  else if (hasUser && clear && !llmOk && !sessionRememberDone)
+  else if (!silent) {
+    if (!hasUser)
+      notify(
+        "No chat text to remember yet. Talk or type something, then try again.",
+      );
+    else if (!llmOk && !sessionRememberDone)
+      notify("Could not save new memories yet. Try again from My pets.");
+    else
+      notify("Chat cleared. Anything clear was already remembered.");
+  } else if (hasUser && clear && !llmOk && !sessionRememberDone)
     notify("Could not save new memories yet. Try again from My pets.");
+  else if (!hasUser && clear)
+    notify(
+      "No chat text to remember yet. Talk or type something, then try again.",
+    );
   return added.length;
 }
 
@@ -946,7 +957,7 @@ async function startTalk(pet) {
 }
 
 let widgetUserMessagesHooked = false;
-/** Once: classic widget user lines (and any path that emits onUserMessage). */
+/** Register once ChatWidget exists; retries until the widget is ready. */
 function hookWidgetUserMessages() {
   if (widgetUserMessagesHooked) return;
   const register = window.ChatWidget?.onUserMessage;
@@ -2886,7 +2897,8 @@ window.addEventListener("pagehide", () => {
     language: getLanguage(),
     transcript,
   }).then((result) => {
-    if (result?.failed) void rememberFromRules({ pet, transcript });
+    if (result?.failed || !result?.added?.length)
+      void rememberFromRules({ pet, transcript });
   });
   try {
     window.ChatWidget?.clearHistory?.();

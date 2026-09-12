@@ -82,11 +82,12 @@ export function memoryInstruction({ petName, language, existing, transcript }) {
     .join("\n");
   return [
     `You help ${name}, a virtual pet, remember its friend (a child aged 8 or older) between chats.`,
-    "You decide what is worth keeping. Read the transcript and extract lasting personal facts the friend shared about themselves — anything that would help the pet know them next time (likes, dislikes, people, places, routines, feelings they named clearly, plans, and so on).",
+    "You decide what is worth keeping. Read the transcript and extract lasting personal facts the friend shared about themselves — anything that would help the pet know them next time (likes, dislikes, people, places, sports, food, routines, feelings they named clearly, plans, and so on).",
+    "Be eager to keep clear personal facts. If the friend said they like football, pizza, a person, a school, or similar, store it. Prefer saving a solid fact over returning an empty list.",
     "Invent a short English snake_case key for each fact yourself. Reuse a Known fact's key when it is the same topic (so the value updates). Do not limit yourself to a fixed list — create a new key whenever the topic is new. Examples of style only (not a closed set): name, favorite_food, favorite_sport, best_friend, scared_of_dogs, plays_piano.",
     `Values are short (under 100 characters) in ${thai ? "Thai" : "English"}, written the way the child said them when possible.`,
     "Rules: only facts the friend stated about themselves; ignore small talk, one-off jokes, questions to the pet, and the pet's own words. Never invent details. Skip things too vague to reuse later. Prefer one clear key per topic; do not store the same fact under two keys.",
-    `Return at most ${MEMORY_LIMITS.maxPerSession} pairs. Return an empty list when there is nothing new worth remembering.`,
+    `Return at most ${MEMORY_LIMITS.maxPerSession} pairs. Return an empty list only when the friend shared nothing personal worth keeping.`,
     "",
     "Known facts:",
     known,

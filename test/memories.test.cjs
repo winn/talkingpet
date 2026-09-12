@@ -138,6 +138,7 @@ test("summarizeMemories asks Gemini with known facts and returns the merged resu
   );
   assert.match(prompt, /Invent a short English snake_case key/);
   assert.match(prompt, /You decide what is worth keeping/);
+  assert.match(prompt, /Be eager to keep clear personal facts/);
   assert.doesNotMatch(
     prompt,
     /Invent a similar key only for something else the friend clearly asked/,
