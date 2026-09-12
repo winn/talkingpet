@@ -59,6 +59,14 @@ import {
   openChatLog,
   renderChatLog,
 } from "./chat-log.js";
+import {
+  clearCapturedTurns,
+  getCapturedTurns,
+  pushCapturedTurn,
+  refreshChatCapture,
+  startChatCapture,
+  stopChatCapture,
+} from "./chat-capture.js";
 import { keyLabel } from "./memory-keys.js";
 import {
   historyItemText,
@@ -375,6 +383,8 @@ async function endTalkSession({ extract = false } = {}) {
   }
   closeChatLog();
   typedTurns = [];
+  clearCapturedTurns();
+  stopChatCapture();
   chatLaunchToken++;
   activeChatPet = null;
   chatThemeObserver?.disconnect();
@@ -396,8 +406,13 @@ async function endTalkSession({ extract = false } = {}) {
 
 /** The friend's and pet's turns from this session only, spoken and typed. */
 function currentTurns() {
+  refreshChatCapture();
   return mergeTurns(
-    [...readWidgetStoreHistory(window), ...readWidgetHistory()],
+    [
+      ...readWidgetStoreHistory(window),
+      ...readWidgetHistory(),
+      ...getCapturedTurns(),
+    ],
     typedTurns,
     talkStartedAt,
   );
@@ -454,6 +469,7 @@ async function extractChatToMemory({ silent = false } = {}) {
     window.ChatWidget?.clearHistory?.();
   } catch {}
   typedTurns = [];
+  clearCapturedTurns();
   talkStartedAt = Date.now();
   renderChatLog([]);
   if (!silent || added.length)
@@ -500,9 +516,11 @@ function startLiveMemory(pet, launchToken) {
   };
   const check = () => {
     if (launchToken !== chatLaunchToken) return;
+    refreshChatCapture();
     const items = [
       ...readWidgetStoreHistory(window),
       ...readWidgetHistory(),
+      ...getCapturedTurns(),
     ];
     for (const item of items) {
       if (String(item?.sender ?? item?.role ?? "").toLowerCase() !== "user")
@@ -901,6 +919,25 @@ async function startTalk(pet) {
   return true;
 }
 
+let widgetUserMessagesHooked = false;
+/** Once: classic widget user lines (and any path that emits onUserMessage). */
+function hookWidgetUserMessages() {
+  if (widgetUserMessagesHooked) return;
+  const register = window.ChatWidget?.onUserMessage;
+  if (typeof register !== "function") return;
+  widgetUserMessagesHooked = true;
+  try {
+    register((text) => {
+      if (!activeChatPet) return;
+      pushCapturedTurn({ sender: "user", text, timestamp: Date.now() });
+      if (isChatLogOpen()) renderChatLog(currentTurns());
+    });
+  } catch (err) {
+    widgetUserMessagesHooked = false;
+    console.warn("[PaintMomo] onUserMessage hook failed:", err);
+  }
+}
+
 export async function launchPetChat(pet) {
   const config = getPetConfig(pet.petType, petGender(pet));
   const launchToken = ++chatLaunchToken;
@@ -932,9 +969,13 @@ export async function launchPetChat(pet) {
   if (launchToken !== chatLaunchToken) return;
   activeChatPet = pet;
   talkStartedAt = Date.now();
+  typedTurns = [];
+  clearCapturedTurns();
+  startChatCapture(document.querySelector("#chatWidgetContainer"));
   activeMemories = await listMemories().catch(() => []);
   if (launchToken !== chatLaunchToken) return;
   startLiveMemory(pet, launchToken);
+  hookWidgetUserMessages();
   const backgroundColor = normalizeBackground(pet.backgroundColor);
   const backgroundId = resolveBackgroundId(pet.backgroundId);
   talkScreen.style.setProperty("--talk-background", backgroundColor);
@@ -2718,10 +2759,13 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
   let scenePaintedFor = null;
   applyBackdrop(talkScreen, backgroundColor, roomId);
   applyBackdrop(container, backgroundColor, roomId);
+  startChatCapture(container);
+  hookWidgetUserMessages();
   const update = () => {
     if (launchToken !== chatLaunchToken) return;
     localizeChatControls(container);
     mountTalkSettings(container);
+    hookWidgetUserMessages();
     const canvas = container.querySelector("canvas");
     if (canvas) {
       localizeText(status, "");
