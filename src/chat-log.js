@@ -58,14 +58,17 @@ export function renderChatLog(turns) {
   const empty = $("#chatLogEmpty");
   if (!list) return;
   empty.hidden = turns.length > 0;
-  const nearBottom =
-    list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-  list.innerHTML = turns
+  const html = turns
     .map(
       (turn) =>
         `<li class="chat-bubble ${turn.role === "user" ? "chat-bubble-user" : "chat-bubble-pet"}">${escapeHtml(turn.text)}</li>`,
     )
     .join("");
+  if (list.dataset.pmHtml === html) return;
+  const nearBottom =
+    list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+  list.dataset.pmHtml = html;
+  list.innerHTML = html;
   if (turns.length !== lastCount && (nearBottom || turns.length > lastCount))
     list.scrollTop = list.scrollHeight;
   lastCount = turns.length;

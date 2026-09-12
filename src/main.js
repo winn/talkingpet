@@ -406,7 +406,6 @@ async function endTalkSession({ extract = false } = {}) {
 
 /** The friend's and pet's turns from this session only, spoken and typed. */
 function currentTurns() {
-  refreshChatCapture();
   return mergeTurns(
     [
       ...readWidgetStoreHistory(window),
@@ -510,13 +509,8 @@ function startLiveMemory(pet, launchToken) {
   stopLiveMemory?.();
   const seen = new Set();
   let busy = Promise.resolve();
-  const refreshChat = () => {
-    if (launchToken !== chatLaunchToken) return;
-    if (isChatLogOpen()) renderChatLog(currentTurns());
-  };
   const check = () => {
     if (launchToken !== chatLaunchToken) return;
-    refreshChatCapture();
     const items = [
       ...readWidgetStoreHistory(window),
       ...readWidgetHistory(),
@@ -537,7 +531,6 @@ function startLiveMemory(pet, launchToken) {
   let wasConnected = false;
   const tick = () => {
     check();
-    refreshChat();
     // A dropped or ended voice session saves the log before it is lost.
     let connected = false;
     try {
@@ -548,14 +541,13 @@ function startLiveMemory(pet, launchToken) {
     }
     wasConnected = connected;
   };
-  const timer = setInterval(tick, 800);
+  const timer = setInterval(tick, 1200);
   let unsubscribe = null;
   try {
     const sub = window.ChatWidget?.subscribe;
     if (typeof sub === "function") {
       unsubscribe = sub.call(window.ChatWidget, () => {
         check();
-        refreshChat();
       });
     }
   } catch (err) {
@@ -2837,6 +2829,7 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("#talkChatBtn")) {
     if (isChatLogOpen()) closeChatLog();
     else {
+      refreshChatCapture();
       openChatLog({ petName: activeChatPet?.name || "" });
       renderChatLog(currentTurns());
     }

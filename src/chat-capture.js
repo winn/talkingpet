@@ -1,23 +1,22 @@
 // Capture what the pet says during realtime talk.
 //
 // Realtime-ar does not put bot lines into ChatWidget.getState().chatHistory.
-// Lines go to an internal usageTracker.history (and optionally a short-lived
-// .bcw-rt-bubble that may sit outside #chatWidgetContainer, or nowhere if
-// bubbles are disabled). We:
-//   1. force-watch the whole document for speech bubbles
-//   2. tap Array.push for {sender, text, timestamp} widget history writes
-// so the messenger window stays in sync either way.
-import { historyItemText } from "./memories.js";
-
-const BUBBLE_SEL = ".bcw-rt-bubble, .bcw-floating-bubble, .bcw-float-bot";
+// Pet lines briefly appear as `.bcw-rt-bubble` nodes (often under
+// #bcw-rt-bubble-container on the page, not inside our chat mount). A light
+// poll is enough — no global Array hooks, no document-wide characterData
+// observers (those made Talk feel slow).
+const BUBBLE_SEL =
+  "#bcw-rt-bubble-container .bcw-rt-bubble, .bcw-rt-bubble, .bcw-floating-bubble.bcw-float-bot";
+const POLL_MS = 300;
+const NOTIFY_MS = 200;
 
 let turns = [];
 let bubbleSeq = 0;
-let observer = null;
-let tapping = false;
+let pollTimer = null;
 let onChange = null;
+let notifyTimer = null;
+let lastNotifyKey = "";
 const bubbleIds = new WeakMap();
-const nativePush = Array.prototype.push;
 
 function cleanText(value) {
   return String(value ?? "")
@@ -25,10 +24,17 @@ function cleanText(value) {
     .trim();
 }
 
-function notify() {
-  try {
-    onChange?.();
-  } catch {}
+function scheduleNotify() {
+  if (!onChange) return;
+  const key = turns.map((t) => `${t.sender}:${t.text}`).join("|");
+  if (key === lastNotifyKey) return;
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => {
+    lastNotifyKey = key;
+    try {
+      onChange();
+    } catch {}
+  }, NOTIFY_MS);
 }
 
 function bubbleId(el) {
@@ -41,117 +47,52 @@ function bubbleId(el) {
 }
 
 function upsertBubble(el) {
-  if (!(el instanceof Element)) return;
+  if (!(el instanceof Element)) return false;
   const text = cleanText(el.textContent);
-  if (!text) return;
+  if (!text) return false;
   const id = bubbleId(el);
   const existing = turns.find((turn) => turn.bubbleId === id);
   if (existing) {
-    if (existing.text === text) return;
+    if (existing.text === text) return false;
     existing.text = text;
     existing.timestamp = Date.now();
-    notify();
-    return;
+    return true;
   }
-  nativePush.call(turns, {
+  turns.push({
     sender: "bot",
     text,
     timestamp: Date.now(),
     bubbleId: id,
   });
-  notify();
-}
-
-function scan(root = document) {
-  if (!root?.querySelectorAll) return;
-  for (const el of root.querySelectorAll(BUBBLE_SEL)) upsertBubble(el);
-}
-
-function onMutations(mutations) {
-  for (const mutation of mutations) {
-    if (mutation.type === "characterData") {
-      const el = mutation.target?.parentElement?.closest?.(BUBBLE_SEL);
-      if (el) upsertBubble(el);
-      continue;
-    }
-    for (const node of mutation.addedNodes) {
-      if (!(node instanceof Element)) continue;
-      if (node.matches?.(BUBBLE_SEL)) upsertBubble(node);
-      else
-        node
-          .querySelectorAll?.(BUBBLE_SEL)
-          ?.forEach((el) => upsertBubble(el));
-    }
-    if (
-      mutation.type === "attributes" &&
-      mutation.target instanceof Element &&
-      mutation.target.matches?.(BUBBLE_SEL)
-    )
-      upsertBubble(mutation.target);
-  }
-}
-
-function looksLikeWidgetTurn(item) {
-  if (!item || typeof item !== "object") return false;
-  if (item.bubbleId != null || item.local) return false;
-  const who = String(item.sender ?? item.role ?? "").toLowerCase();
-  if (who !== "user" && who !== "bot") return false;
-  const text = historyItemText(item);
-  if (!text) return false;
-  const stamp = Number(item.timestamp ?? item.time ?? 0);
-  if (stamp && Math.abs(Date.now() - stamp) > 5 * 60 * 1000) return false;
   return true;
 }
 
-function historyTapPush(...items) {
-  if (tapping) {
-    for (const item of items) {
-      if (!looksLikeWidgetTurn(item)) continue;
-      const who = String(item.sender ?? item.role ?? "").toLowerCase();
-      const text = historyItemText(item);
-      const stamp = Number(item.timestamp ?? item.time ?? Date.now());
-      pushCapturedTurn({ sender: who, text, timestamp: stamp || Date.now() });
-    }
+function scan() {
+  let changed = false;
+  for (const el of document.querySelectorAll(BUBBLE_SEL)) {
+    if (upsertBubble(el)) changed = true;
   }
-  return nativePush.apply(this, items);
+  if (changed) scheduleNotify();
 }
 
-function installHistoryTap() {
-  if (Array.prototype.push === historyTapPush) return;
-  Array.prototype.push = historyTapPush;
-}
-
-function uninstallHistoryTap() {
-  if (Array.prototype.push === historyTapPush)
-    Array.prototype.push = nativePush;
-}
-
-/** Start watching for realtime pet (and user) lines. */
+/** Start a light poll for realtime pet speech bubbles. */
 export function startChatCapture(_root, { onCapture } = {}) {
   stopChatCapture();
   onChange = typeof onCapture === "function" ? onCapture : null;
-  tapping = true;
-  installHistoryTap();
-  scan(document);
-  observer = new MutationObserver(onMutations);
-  observer.observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ["class"],
-  });
+  lastNotifyKey = "";
+  scan();
+  pollTimer = setInterval(scan, POLL_MS);
 }
 
 export function stopChatCapture() {
-  tapping = false;
-  uninstallHistoryTap();
-  observer?.disconnect();
-  observer = null;
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+  clearTimeout(notifyTimer);
+  notifyTimer = null;
   onChange = null;
 }
 
-/** Turns captured from bubbles / history taps / manual pushes. */
+/** Turns captured from bubbles / manual pushes. */
 export function getCapturedTurns() {
   return turns.map(({ sender, text, timestamp }) => ({
     sender,
@@ -162,9 +103,10 @@ export function getCapturedTurns() {
 
 export function clearCapturedTurns() {
   turns = [];
+  lastNotifyKey = "";
 }
 
-/** Record a turn that did not come from a bubble (typed echo, callbacks). */
+/** Record a turn from another path (typed echo, onUserMessage). */
 export function pushCapturedTurn({
   sender = "bot",
   text,
@@ -181,11 +123,11 @@ export function pushCapturedTurn({
     timestamp - last.timestamp < 2000
   )
     return;
-  nativePush.call(turns, { sender: who, text: cleaned, timestamp });
-  notify();
+  turns.push({ sender: who, text: cleaned, timestamp });
+  scheduleNotify();
 }
 
-/** Re-scan the document in case an observer gap missed a bubble. */
+/** Optional one-shot scan (e.g. when opening the chat panel). */
 export function refreshChatCapture() {
-  scan(document);
+  scan();
 }
