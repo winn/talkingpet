@@ -25,14 +25,23 @@ const USER_SENDERS = new Set(["user", "me", "human", "friend", "child"]);
  */
 export function historyItemText(item) {
   if (!item || typeof item !== "object") return "";
-  const direct = item.text ?? item.uiText ?? item.message;
+  const direct =
+    item.text ??
+    item.uiText ??
+    item.message ??
+    item.content ??
+    item.utterance ??
+    item.transcript ??
+    item.asrText ??
+    item.speech;
   let text = "";
   if (direct != null && String(direct).trim()) text = String(direct).trim();
   else {
     const reply = item.reply;
     if (typeof reply === "string") text = reply.trim();
     else if (reply && typeof reply === "object") {
-      const nested = reply.text ?? reply.uiText ?? reply.message;
+      const nested =
+        reply.text ?? reply.uiText ?? reply.message ?? reply.content;
       if (nested != null) text = String(nested).trim();
     }
   }

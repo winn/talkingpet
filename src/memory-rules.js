@@ -31,6 +31,8 @@ const TH_KEYS = [
   ["เกมที่ชอบ", "favorite_game"],
   ["เพลงที่ชอบ", "favorite_song"],
   ["ที่ที่ชอบ", "favorite_place"],
+  ["กีฬาที่ชอบ", "favorite_sport"],
+  ["กีฬาโปรด", "favorite_sport"],
   ["งานอดิเรก", "hobby"],
   ["สัตว์เลี้ยง", "pet"],
   ["โรงเรียน", "school"],
@@ -60,6 +62,8 @@ const EN_KEYS = [
   ["favourite song", "favorite_song"],
   ["favorite place", "favorite_place"],
   ["favourite place", "favorite_place"],
+  ["favorite sport", "favorite_sport"],
+  ["favourite sport", "favorite_sport"],
   ["hobby", "hobby"],
   ["pet", "pet"],
   ["school", "school"],
@@ -95,14 +99,26 @@ function push(found, key, value) {
 }
 
 function thaiValue(rest) {
-  // Up to the next particle, punctuation, or a following clause opener.
-  const m = rest.match(
+  // Up to the next clause opener, punctuation, or a trailing polite particle.
+  // Particles only at the end so values like ว่ายน้ำ stay intact.
+  const m = String(rest ?? "").match(
     new RegExp(
-      `^\\s*(?:ว่า|คือ|ชื่อ|เป็น|:)?\\s*(.+?)(?:\\s*${TH_PARTICLES}\\b|\\s+(?:และ|แล้ว|กับ|ส่วน)\\s|[,.!?;]|$)`,
+      `^\\s*(?:ว่า(?=\\s)|คือ|ชื่อ|เป็น|:)?\\s*(.+?)(?:\\s+(?:และ|แล้ว|กับ|ส่วน)\\s|[,.!?;]|\\s*${TH_PARTICLES}\\s*$|$)`,
       "u",
     ),
   );
   return m ? m[1] : "";
+}
+
+/** Sports kids commonly name (Thai + English). */
+const SPORT_WORD =
+  "(?:ฟุตบอล|ฟุตซอล|บอล|บาส(?:เกตบอล)?|วอลเลย์(?:บอล)?|วอลเล่ย์(?:บอล)?|เทนนิส|แบดมินตัน|ปิงปอง|เทเบิลเทนนิส|ว่ายน้ำ|วิ่ง|กรีฑา|มวย|ยูโด|เทควันโด|ยิมนาสติก|กอล์ฟ|รักบี้|ฮอกกี้|คริกเก็ต|สเก็ต|สกี|จักรยาน|โยคะ|แฮนด์บอล|ซอฟท์บอล|เบสบอล|volleyball|football|soccer|basketball|tennis|badminton|swimming|running|boxing|golf|rugby|hockey|cricket|skate|yoga|futsal)";
+
+function looksLikeSport(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return false;
+  if (/^กีฬา/.test(v)) return true;
+  return new RegExp(SPORT_WORD, "iu").test(v);
 }
 
 function matchName(text, found) {
@@ -188,19 +204,41 @@ function matchFavorites(text, found) {
   if (m) push(found, "favorite_color", thaiValue(m[1]));
   m = text.match(/ชอบวิชา\s*(.+)/u);
   if (m) push(found, "favorite_subject", thaiValue(m[1]));
+  m = text.match(/ชอบกีฬา\s*(.+)/u);
+  if (m) push(found, "favorite_sport", thaiValue(m[1]));
+  m = text.match(
+    new RegExp(`(?:ชอบ(?:ดู|เล่น)?|เล่น)\\s*(${SPORT_WORD})`, "iu"),
+  );
+  if (m) push(found, "favorite_sport", thaiValue(m[1]));
   m = text.match(/ชอบเล่น\s*(.+)/u);
-  if (m) push(found, "favorite_game", thaiValue(m[1]));
-  // "ชอบกิน…", "ชอบทาน…", or bare "ชอบพิซซ่า…" (kids often skip กิน)
-  m = text.match(/ชอบ(?:กิน|ทาน)?\s*(.+)/u);
+  if (m) {
+    const value = thaiValue(m[1]);
+    push(
+      found,
+      looksLikeSport(value) ? "favorite_sport" : "favorite_game",
+      value,
+    );
+  }
+  m = text.match(/ชอบ(?:กิน|ทาน)\s*(.+)/u);
+  if (m) push(found, "favorite_food", thaiValue(m[1]));
+  // Bare "ชอบ…" — route by what follows; never dump unknown topics into food.
+  m = text.match(/ชอบ\s*(.+)/u);
   if (m) {
     const value = thaiValue(m[1]);
     if (
       value &&
-      !/^(สี|วิชา|เล่น|ดู|ฟัง|ไป|มา|ที่|คน|เพื่อน|มาก|จัง|ที่สุด|เลย)/u.test(
+      !/^(สี|วิชา|กีฬา|เล่น|กิน|ทาน|ดู|ฟัง|ไป|มา|ที่|คน|เพื่อน|มาก|จัง|ที่สุด|เลย)/u.test(
         value,
       )
-    )
-      push(found, "favorite_food", value);
+    ) {
+      if (looksLikeSport(value)) push(found, "favorite_sport", value);
+      else if (
+        /^(พิซซ่า|pizza|ไอติม|ไอศกรีม|ข้าว|ก๋วยเตี๋ยว|ซูชิ|แฮมเบอร์เกอร์|ขนม|ไก่|ปลา|เนื้อ|ผลไม้|ชา|กาแฟ|นม|ช็อกโกแลต|เค้ก|ของหวาน)/iu.test(
+          value,
+        )
+      )
+        push(found, "favorite_food", value);
+    }
   }
   for (const [words, key] of EN_KEYS) {
     if (["name", "nickname", "phone", "birthday", "age"].includes(key))
@@ -216,6 +254,21 @@ function matchFavorites(text, found) {
     /\bI (?:love|like) (?:eating|to eat)\s+(.+?)(?:[,.!?;]|\s+(?:and|but)\s|$)/i,
   );
   if (m) push(found, "favorite_food", m[1]);
+  m = text.match(
+    /\bI (?:love|like) (?:playing|to play)\s+(.+?)(?:[,.!?;]|\s+(?:and|but)\s|$)/i,
+  );
+  if (m) {
+    const value = m[1];
+    push(
+      found,
+      looksLikeSport(value) ? "favorite_sport" : "favorite_game",
+      value,
+    );
+  }
+  m = text.match(
+    /\b(?:my )?favorite sport(?:'s| is|:)\s+(.+?)(?:[,.!?;]|\s+(?:and|but)\s|$)/i,
+  );
+  if (m) push(found, "favorite_sport", m[1]);
 }
 
 /** Text after "please remember…" / "ช่วยจำหน่อยว่า…", or "" when absent. */

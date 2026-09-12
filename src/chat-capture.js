@@ -95,28 +95,49 @@ function ingestHistoryItems(items) {
   if (!Array.isArray(items)) return;
   for (const item of items) {
     if (!item || typeof item !== "object") continue;
-    const who = String(item.sender ?? "").toLowerCase();
-    if (who !== "user" && who !== "bot") continue;
-    const text = cleanText(item.text);
+    const who = String(item.sender ?? item.role ?? "").toLowerCase();
+    if (who !== "user" && who !== "bot" && who !== "me" && who !== "human")
+      continue;
+    const text = cleanText(
+      item.text ??
+        item.uiText ??
+        item.message ??
+        item.content ??
+        item.utterance ??
+        item.transcript ??
+        item.asrText ??
+        item.speech ??
+        "",
+    );
     if (!text || isInternalPromptText(text)) continue;
     pushCapturedTurn({
-      sender: who,
+      sender: who === "bot" ? "bot" : "user",
       text,
-      timestamp: Number(item.timestamp) || Date.now(),
+      timestamp: Number(item.timestamp ?? item.time) || Date.now(),
     });
   }
 }
 
-/** Ultra-cheap: only objects with sender user|bot and a string text field. */
+/** Ultra-cheap: objects with sender user|bot and a string speech field. */
 function historyTapPush(...items) {
   if (tapping) {
     for (const item of items) {
       if (!item || typeof item !== "object") continue;
       const who = item.sender;
       if (who !== "user" && who !== "bot") continue;
-      if (typeof item.text !== "string") continue;
       if (item.bubbleId != null) continue;
-      const text = cleanText(item.text);
+      const raw =
+        typeof item.text === "string"
+          ? item.text
+          : typeof item.content === "string"
+            ? item.content
+            : typeof item.utterance === "string"
+              ? item.utterance
+              : typeof item.transcript === "string"
+                ? item.transcript
+                : null;
+      if (raw == null) continue;
+      const text = cleanText(raw);
       if (!text || isInternalPromptText(text)) continue;
       pushCapturedTurn({
         sender: who,

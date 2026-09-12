@@ -83,9 +83,9 @@ export function memoryInstruction({ petName, language, existing, transcript }) {
   return [
     `You help ${name}, a virtual pet, remember its friend (a child aged 8 or older) between chats.`,
     "Read the transcript and extract lasting personal facts the friend shared about themselves, as key/value pairs.",
-    "Keys are short English snake_case labels, reusing these when they fit: name, nickname, birthday, age, favorite_food, favorite_color, favorite_subject, favorite_animal, favorite_game, favorite_song, favorite_place, hobby, pet, family, school, friend, dream, dislike. Invent a similar key only for something else the friend clearly asked the pet to remember.",
-    `Values are short (under 100 characters) in ${thai ? "Thai" : "English"}, for example ${thai ? 'name: "จอห์น", birthday: "19 มีนาคม", favorite_food: "ไอศกรีมชาเขียว"' : 'name: "John", birthday: "19 March", favorite_food: "green tea ice cream"'}.`,
-    "Rules: only facts the friend stated about themselves; ignore small talk, questions, and the pet's own words. Never invent details. Repeat a known key only when its value changed.",
+    "Keys are short English snake_case labels, reusing these when they fit: name, nickname, birthday, age, favorite_food, favorite_color, favorite_subject, favorite_animal, favorite_game, favorite_song, favorite_place, favorite_sport, hobby, pet, family, school, friend, dream, dislike. Invent a similar key only for something else the friend clearly asked the pet to remember.",
+    `Values are short (under 100 characters) in ${thai ? "Thai" : "English"}, for example ${thai ? 'name: "จอห์น", birthday: "19 มีนาคม", favorite_food: "ไอศกรีมชาเขียว", favorite_sport: "ฟุตบอล"' : 'name: "John", birthday: "19 March", favorite_food: "green tea ice cream", favorite_sport: "football"'}.`,
+    "Rules: only facts the friend stated about themselves; ignore small talk, questions, and the pet's own words. Never invent details. Repeat a known key only when its value changed. Sports the friend likes or plays (football, swimming, basketball, etc.) use favorite_sport — not hobby or favorite_game.",
     `Return at most ${MEMORY_LIMITS.maxPerSession} pairs. Return an empty list when there is nothing new worth remembering.`,
     "",
     "Known facts:",

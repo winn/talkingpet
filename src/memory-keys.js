@@ -33,6 +33,7 @@ const LABELS = {
   favorite_game: ["Favorite game", "เกมโปรด"],
   favorite_song: ["Favorite song", "เพลงโปรด"],
   favorite_place: ["Favorite place", "ที่โปรด"],
+  favorite_sport: ["Favorite sport", "กีฬาโปรด"],
   hobby: ["Hobby", "งานอดิเรก"],
   pet: ["Pet", "สัตว์เลี้ยง"],
   family: ["Family", "ครอบครัว"],
