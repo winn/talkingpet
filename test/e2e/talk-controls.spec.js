@@ -176,7 +176,9 @@ test("leaving talk gets the chat remembered; memory can be viewed, added and for
   });
   await page.locator("#exitTalkBtn").click();
   await expect(page.locator("#petHubScreen")).toBeVisible();
-  await expect(page.locator("#toast")).toHaveText("Momo will remember what you shared today.");
+  await expect(page.locator("#toast")).toHaveText(
+    "Saved to memory: 1 new things. Chat cleared.",
+  );
   expect(summaries).toHaveLength(1);
   expect(summaries[0]).toMatchObject({
     petId: "talk-controls",
@@ -196,42 +198,23 @@ test("leaving talk gets the chat remembered; memory can be viewed, added and for
   );
 
   const rows = page.locator("#memoryRows tr");
-  // While talking, a clear statement is remembered at once.
-  await page.evaluate(() => {
-    window.stubHistory.push({ sender: "user", text: "ผมชื่อวินน์ครับ", timestamp: Date.now() });
-  });
-  await expect(page.locator("#toast")).toHaveText("Momo will remember: Name = วินน์");
-  await expect
-    .poll(() => page.evaluate(() => window.ChatWidgetConfig.greetingInstruction))
-    .toMatch(/- name: วินน์/);
-  expect(upserts.at(-1).body).toMatchObject({ key: "name", value: "วินน์", pet_name: "Momo" });
-  await page.evaluate(() => {
-    window.stubHistory.push({
-      sender: "user",
-      text: "ช่วยจำหน่อยว่าวันเกิดของชั้นวันที่ 19 มีนาคม",
-      timestamp: Date.now(),
-    });
-  });
-  await expect(page.locator("#toast")).toHaveText("Momo will remember: Birthday = 19 มีนาคม");
 
-  // Settings → Memory opens the table over the pet.
+  // Settings → Memory opens the table over the pet (facts from the last session only).
   await page.locator("#talkSettingsBtn").click();
   await page.locator("#talkMemoryBtn").click();
   const modal = page.locator("#memoryModal");
   await expect(modal).toBeVisible();
   await expect(page.locator("#memoryTitle")).toHaveText("What Momo remembers");
   const rowsInSheet = page.locator("#memoryRows tr");
-  await expect(rowsInSheet).toHaveCount(3);
-  await expect(page.locator("#memoryRows")).toContainText("Birthday");
-  await expect(page.locator("#memoryRows")).toContainText("19 มีนาคม");
-  await expect(page.locator("#memoryRows")).toContainText("วินน์");
+  await expect(rowsInSheet).toHaveCount(1);
+  await expect(page.locator("#memoryRows")).toContainText("John");
   await expect(page.locator("#memoryRows")).toContainText("from Momo");
 
   // Adding by hand stores a snake_case key and updates the current chat's instructions.
   await page.locator("#memoryKey").fill("Favorite subject");
   await page.locator("#memoryValue").fill("  Science  ");
   await page.locator("#memoryAddBtn").click();
-  await expect(rows).toHaveCount(4);
+  await expect(rows).toHaveCount(2);
   await expect(rows.first()).toContainText("Favorite subject");
   await expect(rows.first()).toContainText("Science");
   expect(upserts.at(-1).body).toMatchObject({ key: "favorite_subject", value: "Science" });
@@ -243,7 +226,7 @@ test("leaving talk gets the chat remembered; memory can be viewed, added and for
 
   // Forgetting one, then everything.
   await rows.first().getByRole("button", { name: "Forget this memory" }).click();
-  await expect(rows).toHaveCount(3);
+  await expect(rows).toHaveCount(1);
   await page.locator("#forgetAllBtn").click();
   await expect(rows).toHaveCount(0);
   await expect(page.locator("#memoryEmpty")).toBeVisible();
