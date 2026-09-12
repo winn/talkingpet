@@ -6,8 +6,10 @@
 // { sender: "user"|"bot", text, timestamp }.
 //
 // We keep this cheap: a 300ms bubble poll, plus an Array.push tap that only
-// inspects objects with sender === "user"|"bot" (primitives and Three.js
-// pushes bail out in one typeof check). No document-wide MutationObservers.
+// inspects objects with sender === "user"|"bot". Prompt / greeting-instruction
+// leaks from the widget are filtered out so kids never see the system prompt.
+import { isInternalPromptText } from "./prompt-filter.js";
+
 const BOT_BUBBLE_SEL =
   "#bcw-rt-bubble-container .bcw-rt-bubble, .bcw-rt-bubble, .bcw-floating-bubble.bcw-float-bot";
 const USER_BUBBLE_SEL =
@@ -57,7 +59,7 @@ function bubbleId(el) {
 function upsertBubble(el, role) {
   if (!(el instanceof Element)) return false;
   const text = cleanText(el.textContent);
-  if (!text) return false;
+  if (!text || isInternalPromptText(text)) return false;
   const id = bubbleId(el);
   const sender = role === "user" ? "user" : "bot";
   const existing = turns.find((turn) => turn.bubbleId === id);
@@ -96,7 +98,7 @@ function ingestHistoryItems(items) {
     const who = String(item.sender ?? "").toLowerCase();
     if (who !== "user" && who !== "bot") continue;
     const text = cleanText(item.text);
-    if (!text) continue;
+    if (!text || isInternalPromptText(text)) continue;
     pushCapturedTurn({
       sender: who,
       text,
@@ -115,7 +117,7 @@ function historyTapPush(...items) {
       if (typeof item.text !== "string") continue;
       if (item.bubbleId != null) continue;
       const text = cleanText(item.text);
-      if (!text) continue;
+      if (!text || isInternalPromptText(text)) continue;
       pushCapturedTurn({
         sender: who,
         text,
@@ -209,7 +211,7 @@ export function pushCapturedTurn({
   timestamp = Date.now(),
 }) {
   const cleaned = cleanText(text);
-  if (!cleaned) return;
+  if (!cleaned || isInternalPromptText(cleaned)) return;
   const who = String(sender).toLowerCase() === "user" ? "user" : "bot";
   const last = turns[turns.length - 1];
   if (

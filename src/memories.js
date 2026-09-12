@@ -10,6 +10,9 @@
 // `public.user_memories`, scoped to the account by row level security. Nothing
 // here reads the widget's source.
 import { getSession, getSupabase } from "./auth.js";
+import { isInternalPromptText } from "./prompt-filter.js";
+
+export { isInternalPromptText } from "./prompt-filter.js";
 
 const TABLE = "user_memories";
 export const HISTORY_KEY_PREFIX = "botnoi_history_";
@@ -17,19 +20,23 @@ const USER_SENDERS = new Set(["user", "me", "human", "friend", "child"]);
 
 /**
  * Plain text from a widget history item. Bot replies often live under
- * `reply.text` rather than `text` / `uiText`.
+ * `reply.text` rather than `text` / `uiText`. Prompt leaks are dropped.
  */
 export function historyItemText(item) {
   if (!item || typeof item !== "object") return "";
   const direct = item.text ?? item.uiText ?? item.message;
-  if (direct != null && String(direct).trim()) return String(direct).trim();
-  const reply = item.reply;
-  if (typeof reply === "string") return reply.trim();
-  if (reply && typeof reply === "object") {
-    const nested = reply.text ?? reply.uiText ?? reply.message;
-    if (nested != null) return String(nested).trim();
+  let text = "";
+  if (direct != null && String(direct).trim()) text = String(direct).trim();
+  else {
+    const reply = item.reply;
+    if (typeof reply === "string") text = reply.trim();
+    else if (reply && typeof reply === "object") {
+      const nested = reply.text ?? reply.uiText ?? reply.message;
+      if (nested != null) text = String(nested).trim();
+    }
   }
-  return "";
+  if (!text || isInternalPromptText(text)) return "";
+  return text;
 }
 
 export async function listMemories() {

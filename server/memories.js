@@ -3,6 +3,7 @@
 // prompt, the response shape, and the merge with what is already known.
 import { GEMINI_URL } from "./audio.js";
 import { normalizeKey, normalizeValue } from "../src/memory-keys.js";
+import { isInternalPromptText } from "../src/prompt-filter.js";
 
 export const MEMORY_LIMITS = {
   maxPerSession: 8,
@@ -28,7 +29,7 @@ export function normalizeTranscript(raw) {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, MEMORY_LIMITS.maxTurnChars);
-    if (!text) continue;
+    if (!text || isInternalPromptText(text)) continue;
     turns.push({ role: USER_ROLES.has(who) ? "user" : "pet", text });
   }
   return turns.slice(-MEMORY_LIMITS.maxTurns);

@@ -20,6 +20,10 @@ test("transcripts normalise widget history items and {role,text} pairs", async (
       reply: { type: "text", text: "Yum!" },
       timestamp: 9,
     },
+    {
+      sender: "bot",
+      text: "[Greeting Instruction]: You are Momo. สิ่งที่เธอจำได้เกี่ยวกับเพื่อนจากการคุยครั้งก่อน: - name: John",
+    },
   ]);
   assert.deepEqual(turns, [
     { role: "user", text: "My name is John" },

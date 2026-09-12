@@ -35,6 +35,11 @@ test("history tap records user speech objects without slowing other pushes", asy
     sink.push({ foo: "bar" });
     sink.push({ sender: "user", text: "My name is Momo", timestamp: 50 });
     sink.push({ sender: "bot", text: "Nice to meet you", timestamp: 60 });
+    sink.push({
+      sender: "bot",
+      text: "[Greeting Instruction]: You are Momo\n\nใช้คำง่าย ๆ สำหรับเด็กอายุ 8 ปีขึ้นไป",
+      timestamp: 70,
+    });
     assert.deepEqual(getCapturedTurns(), [
       { sender: "user", text: "My name is Momo", timestamp: 50 },
       { sender: "bot", text: "Nice to meet you", timestamp: 60 },
