@@ -971,7 +971,13 @@ export async function launchPetChat(pet) {
   talkStartedAt = Date.now();
   typedTurns = [];
   clearCapturedTurns();
-  startChatCapture(document.querySelector("#chatWidgetContainer"));
+  const paintCaptured = () => {
+    if (launchToken !== chatLaunchToken) return;
+    if (isChatLogOpen()) renderChatLog(currentTurns());
+  };
+  startChatCapture(document.querySelector("#chatWidgetContainer"), {
+    onCapture: paintCaptured,
+  });
   activeMemories = await listMemories().catch(() => []);
   if (launchToken !== chatLaunchToken) return;
   startLiveMemory(pet, launchToken);
@@ -1011,6 +1017,8 @@ export async function launchPetChat(pet) {
     greetingInstruction: greeting,
     container: "#chatWidgetContainer",
     backgroundColor,
+    // Realtime bot lines only become visible DOM (and easy to mirror) when on.
+    enableBubble: true,
   };
 
   if (
@@ -1023,6 +1031,7 @@ export async function launchPetChat(pet) {
         avatarUrl: vrmBlobUrl,
         greetingInstruction: greeting,
         backgroundColor,
+        enableBubble: true,
       });
       watchChatSurface(backgroundColor, backgroundId, launchToken);
       return;
@@ -2759,7 +2768,12 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
   let scenePaintedFor = null;
   applyBackdrop(talkScreen, backgroundColor, roomId);
   applyBackdrop(container, backgroundColor, roomId);
-  startChatCapture(container);
+  startChatCapture(container, {
+    onCapture: () => {
+      if (launchToken !== chatLaunchToken) return;
+      if (isChatLogOpen()) renderChatLog(currentTurns());
+    },
+  });
   hookWidgetUserMessages();
   const update = () => {
     if (launchToken !== chatLaunchToken) return;
