@@ -3796,6 +3796,139 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   flex-direction: column;
   align-items: stretch;
 }
+.talk-chat-button svg {
+  width: 26px;
+  height: 26px;
+  fill: #fff;
+}
+#talkChatWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#talkChatWrap.talk-chat-floating {
+  position: absolute;
+  right: 22px;
+  bottom: 184px;
+  z-index: 141;
+}
+/* Chat window: the talk as text, beside the pet. */
+.chat-log {
+  position: fixed;
+  z-index: 140;
+  left: 16px;
+  bottom: 16px;
+  top: max(76px, calc(env(safe-area-inset-top) + 60px));
+  width: min(380px, calc(100vw - 120px));
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 12px 32px #3d2f2833;
+  overflow: hidden;
+}
+.chat-log[hidden] {
+  display: none;
+}
+.chat-log-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 60px 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.chat-log-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 17px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-log-extract {
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 18px;
+  line-height: 1;
+}
+.chat-log-close {
+  top: 10px;
+  right: 10px;
+}
+.chat-log-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 14px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.chat-bubble {
+  max-width: 82%;
+  padding: 9px 13px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.chat-bubble-pet {
+  align-self: flex-start;
+  background: #fffefb;
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 6px;
+}
+.chat-bubble-user {
+  align-self: flex-end;
+  background: var(--peach);
+  color: var(--peach-dark);
+  border-bottom-right-radius: 6px;
+}
+.chat-log-empty {
+  margin: 0;
+  padding: 0 18px 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.chat-log-empty[hidden] {
+  display: none;
+}
+.chat-log-form {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  background: #fffefb;
+}
+.chat-log-form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+}
+.chat-log-form button {
+  min-height: 44px;
+  padding: 8px 16px;
+}
+@media (max-width: 720px) {
+  .chat-log {
+    left: 8px;
+    right: 96px;
+    top: auto;
+    bottom: 8px;
+    width: auto;
+    max-height: 62vh;
+  }
+}
 .talk-settings-row {
   display: flex;
   align-items: center;

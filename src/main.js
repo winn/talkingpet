@@ -51,6 +51,14 @@ import {
   openMemorySheet,
 } from "./memory-panel.js";
 import { extractMemories } from "./memory-rules.js";
+import {
+  closeChatLog,
+  initChatLog,
+  isChatLogOpen,
+  mergeTurns,
+  openChatLog,
+  renderChatLog,
+} from "./chat-log.js";
 import { keyLabel } from "./memory-keys.js";
 import {
   listMemories,
@@ -58,7 +66,6 @@ import {
   readWidgetStoreHistory,
   rememberSession,
   saveMemory,
-  transcriptSince,
 } from "./memories.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
 import {
@@ -118,6 +125,8 @@ let threeCamera = null;
 let activeMemories = [];
 let talkStartedAt = 0;
 let stopLiveMemory = null;
+// Messages typed in the chat window; the widget's store holds the spoken ones.
+let typedTurns = [];
 let threeRenderer = null;
 let threeControls = null;
 let isPainterRunning = false;
@@ -277,6 +286,8 @@ initAccount({
   onSignedIn: () => loadPetHub(),
   onSignedOut: () => loadPetHub(),
   onAdminClosed: () => loadPetHub(),
+  // Same 🧠 action as the chat window, before auth is dropped.
+  beforeSignOut: () => endTalkSession({ extract: true }),
   notify: (message, params) => notify(message, params),
 });
 loadPetHub();
@@ -341,37 +352,106 @@ function initHubEvents() {
     }
   });
   exitTalkBtn.addEventListener("click", async () => {
-    const leavingPet = activeChatPet;
-    const transcript = collectTalkTranscript();
-    stopLiveMemory?.();
-    chatLaunchToken++;
-    activeChatPet = null;
-    chatThemeObserver?.disconnect();
-    talkControls?.destroy();
-    talkControls = null;
-    if (window.ChatWidget?.destroy) {
-      try {
-        await window.ChatWidget.destroy();
-      } catch {}
-    } else if (window.ChatWidget?.disconnect) {
-      try {
-        await window.ChatWidget.disconnect();
-      } catch {}
-    }
-    document.querySelector("#chatWidgetContainer").replaceChildren();
-    document.getElementById("webavatar-jssdk")?.remove();
-    revokeAllPetVrmUrls();
+    await endTalkSession({ extract: true });
     await loadPetHub();
-    rememberTalkSession(leavingPet, transcript);
   });
 }
 
-/** The friend's and pet's turns from this session only. */
-function collectTalkTranscript() {
-  return transcriptSince(
+/**
+ * Leave Talk: optionally run the chat window's 🧠 action (summarise + clear)
+ * while the widget is still up, then tear the session down. Used by My pets,
+ * sign-out, and any path that must not lose the log.
+ */
+async function endTalkSession({ extract = false } = {}) {
+  if (!activeChatPet && !window.ChatWidget) return;
+  stopLiveMemory?.();
+  if (extract && activeChatPet) {
+    try {
+      await extractChatToMemory({ silent: true });
+    } catch (err) {
+      console.warn("[PaintMomo] extract on leave failed:", err);
+    }
+  }
+  closeChatLog();
+  typedTurns = [];
+  chatLaunchToken++;
+  activeChatPet = null;
+  chatThemeObserver?.disconnect();
+  talkControls?.destroy();
+  talkControls = null;
+  if (window.ChatWidget?.destroy) {
+    try {
+      await window.ChatWidget.destroy();
+    } catch {}
+  } else if (window.ChatWidget?.disconnect) {
+    try {
+      await window.ChatWidget.disconnect();
+    } catch {}
+  }
+  document.querySelector("#chatWidgetContainer")?.replaceChildren();
+  document.getElementById("webavatar-jssdk")?.remove();
+  revokeAllPetVrmUrls();
+}
+
+/** The friend's and pet's turns from this session only, spoken and typed. */
+function currentTurns() {
+  return mergeTurns(
     [...readWidgetStoreHistory(window), ...readWidgetHistory()],
+    typedTurns,
     talkStartedAt,
   );
+}
+function collectTalkTranscript() {
+  return currentTurns().map(({ role, text }) => ({ role, text }));
+}
+
+/** Typed in the chat window: show it, send it to the pet, and check it for facts. */
+async function sendTypedMessage(text) {
+  const pet = activeChatPet;
+  if (!pet) return;
+  const launchToken = chatLaunchToken;
+  typedTurns.push({ sender: "user", text, timestamp: Date.now() });
+  renderChatLog(currentTurns());
+  try {
+    window.ChatWidget?.sendUserMessage?.(text);
+  } catch (err) {
+    console.warn("[PaintMomo] sendUserMessage failed:", err);
+  }
+  await rememberLiveTurn(pet, text, launchToken);
+}
+
+/**
+ * The chat window's memory button, also run when the voice session drops:
+ * summarise the log into permanent memories, then clear the log.
+ */
+async function extractChatToMemory({ silent = false } = {}) {
+  const pet = activeChatPet;
+  if (!pet) return 0;
+  const launchToken = chatLaunchToken;
+  const transcript = collectTalkTranscript();
+  let added = [];
+  if (transcript.some((turn) => turn.role === "user"))
+    added = await rememberSession({ pet, language: getLanguage(), transcript });
+  if (launchToken !== chatLaunchToken) return 0;
+  for (const row of added) {
+    activeMemories = [row, ...activeMemories.filter((m) => m.key !== row.key)];
+    noteMemorySaved(row);
+  }
+  if (added.length) pushGreetingToWidget();
+  try {
+    window.ChatWidget?.clearHistory?.();
+  } catch {}
+  typedTurns = [];
+  talkStartedAt = Date.now();
+  renderChatLog([]);
+  if (!silent || added.length)
+    notify(
+      added.length
+        ? "Saved to memory: {n} new things. Chat cleared."
+        : "Chat cleared. Anything clear was already remembered.",
+      { n: added.length },
+    );
+  return added.length;
 }
 
 /** Push the current memories into the running chat's instructions. */
@@ -416,7 +496,22 @@ function startLiveMemory(pet, launchToken) {
       busy = busy.then(() => rememberLiveTurn(pet, text, launchToken));
     }
   };
-  const timer = setInterval(check, 1200);
+  let wasConnected = false;
+  const tick = () => {
+    check();
+    if (launchToken !== chatLaunchToken) return;
+    if (isChatLogOpen()) renderChatLog(currentTurns());
+    // A dropped or ended voice session saves the log before it is lost.
+    let connected = false;
+    try {
+      connected = Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
+    } catch {}
+    if (wasConnected && !connected) {
+      busy = busy.then(() => extractChatToMemory({ silent: true }));
+    }
+    wasConnected = connected;
+  };
+  const timer = setInterval(tick, 1200);
   stopLiveMemory = () => {
     clearInterval(timer);
     stopLiveMemory = null;
@@ -446,18 +541,6 @@ async function rememberLiveTurn(pet, text, launchToken) {
     }
   }
   if (changed) pushGreetingToWidget();
-}
-
-// Runs after the hub is back so leaving never waits on the summary.
-async function rememberTalkSession(pet, transcript) {
-  if (!pet || !transcript.length) return;
-  const added = await rememberSession({
-    pet,
-    language: getLanguage(),
-    transcript,
-  });
-  if (added.length)
-    notify("{name} will remember what you shared today.", { name: pet.name });
 }
 
 async function loadPetHub() {
@@ -2655,22 +2738,37 @@ renderPromptRecipe();
 // The memory sheet opens from the Talk settings panel; edits there reach the
 // current chat's instructions right away, without waiting for the next talk.
 initMemoryPanel({ notify });
+initChatLog({ onSend: sendTypedMessage, onExtract: extractChatToMemory });
 document.addEventListener("click", (event) => {
   if (event.target.closest("#talkMemoryBtn"))
     openMemorySheet({ petName: activeChatPet?.name || "" });
+  if (event.target.closest("#talkChatBtn")) {
+    if (isChatLogOpen()) closeChatLog();
+    else {
+      openChatLog({ petName: activeChatPet?.name || "" });
+      renderChatLog(currentTurns());
+    }
+  }
 });
 window.addEventListener("memorieschange", () => {
   activeMemories = getMemories();
   pushGreetingToWidget();
 });
-// Closing the tab mid-talk still gets the session remembered (keepalive fetch).
+// Closing the tab mid-talk: same 🧠 action as far as pagehide allows —
+// keepalive summarise, then clear the widget log before unload.
 window.addEventListener("pagehide", () => {
   if (!activeChatPet) return;
+  const pet = activeChatPet;
+  const transcript = collectTalkTranscript();
   rememberSession({
-    pet: activeChatPet,
+    pet,
     language: getLanguage(),
-    transcript: collectTalkTranscript(),
+    transcript,
   });
+  try {
+    window.ChatWidget?.clearHistory?.();
+  } catch {}
+  typedTurns = [];
 });
 window.addEventListener("languagechange", async () => {
   if (lastPets) renderPetGrid(lastPets);

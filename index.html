@@ -1404,6 +1404,58 @@
         </div>
       </div>
     </div>
+    <aside
+      id="chatLogPanel"
+      class="chat-log"
+      role="dialog"
+      aria-labelledby="chatLogTitle"
+      hidden
+    >
+      <header class="chat-log-head">
+        <h2 id="chatLogTitle"><span data-i18n="Chat">Chat</span></h2>
+        <button
+          id="chatExtractBtn"
+          type="button"
+          class="secondary chat-log-extract"
+          aria-label="Save to memory and clear the chat"
+          data-i18n-aria-label="Save to memory and clear the chat"
+          title="Save to memory and clear the chat"
+          data-i18n-title="Save to memory and clear the chat"
+        >
+          <span aria-hidden="true">🧠</span>
+        </button>
+        <button
+          id="closeChatLogBtn"
+          type="button"
+          class="close-x chat-log-close"
+          aria-label="Close"
+          data-i18n-aria-label="Close"
+        >
+          ×
+        </button>
+      </header>
+      <ol id="chatLogList" class="chat-log-list" aria-live="polite"></ol>
+      <p id="chatLogEmpty" class="chat-log-empty">
+        <span data-i18n="No messages yet. Say hi, or type below."
+          >No messages yet. Say hi, or type below.</span
+        >
+      </p>
+      <form id="chatLogForm" class="chat-log-form">
+        <input
+          id="chatLogInput"
+          type="text"
+          autocomplete="off"
+          maxlength="500"
+          placeholder="Type a message…"
+          data-i18n-placeholder="Type a message…"
+          aria-label="Message"
+          data-i18n-aria-label="Message"
+        />
+        <button id="chatLogSendBtn" type="submit" class="primary">
+          <span data-i18n="Send">Send</span>
+        </button>
+      </form>
+    </aside>
     <div
       id="memoryModal"
       class="overlay hidden"

@@ -9,6 +9,19 @@ import { applyTranslations } from "./i18n.js";
 export const SETTINGS_WRAP_ID = "talkSettingsWrap";
 export const SETTINGS_BUTTON_ID = "talkSettingsBtn";
 export const SETTINGS_PANEL_ID = "talkSettingsPanel";
+export const CHAT_WRAP_ID = "talkChatWrap";
+export const CHAT_BUTTON_ID = "talkChatBtn";
+
+const CHAT_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3C6.5 3 2 6.9 2 11.7c0 2.6 1.3 4.9 3.4 6.5L4.6 21.5a.6.6 0 0 0 .9.6l3.9-2.2c.8.2 1.7.3 2.6.3 5.5 0 10-3.9 10-8.7S17.5 3 12 3zm-4 9.9a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6z"/></svg>`;
+
+function buildChatWrap(doc) {
+  const wrap = doc.createElement("div");
+  wrap.id = CHAT_WRAP_ID;
+  wrap.innerHTML = `<button type="button" id="${CHAT_BUTTON_ID}"
+      class="bcw-rt-btn bcw-rt-btn-secondary talk-chat-button"
+      aria-label="Chat window" data-i18n-aria-label="Chat window">${CHAT_ICON}</button>`;
+  return wrap;
+}
 
 const GEAR_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19.4 13a7.6 7.6 0 0 0 .1-1 7.6 7.6 0 0 0-.1-1l2.1-1.6a.5.5 0 0 0 .1-.7l-2-3.4a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.4a.5.5 0 0 0 .1.7L4.6 11a7.6 7.6 0 0 0-.1 1 7.6 7.6 0 0 0 .1 1l-2.1 1.6a.5.5 0 0 0-.1.7l2 3.4a.5.5 0 0 0 .6.2l2.5-1a7.3 7.3 0 0 0 1.7 1l.4 2.6a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5l.4-2.6a7.3 7.3 0 0 0 1.7-1l2.5 1a.5.5 0 0 0 .6-.2l2-3.4a.5.5 0 0 0-.1-.7L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>`;
 
@@ -60,6 +73,14 @@ export function mountTalkSettings(container, doc = container?.ownerDocument) {
     else home.appendChild(wrap);
   }
   wrap.classList.toggle("talk-settings-floating", !controls);
+  // The chat window button sits just above Settings.
+  let chat = container.querySelector(`#${CHAT_WRAP_ID}`);
+  if (!chat) chat = buildChatWrap(doc);
+  if (chat.parentElement !== home || chat.nextElementSibling !== wrap) {
+    home.insertBefore(chat, wrap);
+    applyTranslations(chat);
+  }
+  chat.classList.toggle("talk-chat-floating", !controls);
   // Translate once attached so the current language's toggle reads pressed.
   if (fresh) applyTranslations(wrap);
   return wrap;

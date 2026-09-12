@@ -54,6 +54,7 @@ let hooks = {
   onSignedIn: () => {},
   onSignedOut: () => {},
   onAdminClosed: () => {},
+  beforeSignOut: async () => {},
   notify: () => {},
 };
 let loginMode = "signin";
@@ -384,6 +385,12 @@ function bindAccountSheet() {
   $("#signOutBtn").addEventListener("click", async () => {
     $("#signOutBtn").disabled = true;
     try {
+      // Flush chat → memory while the session token is still valid.
+      try {
+        await hooks.beforeSignOut();
+      } catch (err) {
+        console.warn("[PaintMomo] beforeSignOut failed:", err);
+      }
       await signOut();
     } finally {
       $("#signOutBtn").disabled = false;
