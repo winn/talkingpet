@@ -1388,7 +1388,9 @@ input[type="color"]::-webkit-color-swatch {
   left: 16px;
   right: 16px;
   top: max(16px, env(safe-area-inset-top));
-  z-index: 160;
+  /* Above the hosted widget's own layers (it uses z-indexes near 2^31), so
+     the back button and pet name stay visible once the 3D scene renders. */
+  z-index: 2147483647;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3706,7 +3708,10 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   color: var(--muted);
 }
 .memory-card {
+  position: relative;
   width: min(560px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
   display: grid;
   gap: 12px;
   text-align: left;
