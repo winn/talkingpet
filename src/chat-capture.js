@@ -78,6 +78,7 @@ function upsertBubble(el, role) {
 }
 
 function scan() {
+  if (typeof document === "undefined") return;
   let changed = false;
   for (const el of document.querySelectorAll(BOT_BUBBLE_SEL)) {
     if (upsertBubble(el, "bot")) changed = true;
