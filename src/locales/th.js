@@ -7,8 +7,8 @@ export const TH = {
   "3D preview": "ดูตัวเพื่อน",
   "3D preview. Drag to turn your pet. Paint on the coloring sheet.":
     "ภาพตัวเพื่อน ลากเพื่อหมุน ระบายสีได้บนแผ่นระบายสี",
-  "Paint Momo · Little pet, big imagination":
-    "Paint Momo · เพื่อนตัวจิ๋ว จินตนาการไม่รู้จบ",
+  "Talking Momo · Little pet, big imagination":
+    "Talking Momo · เพื่อนตัวจิ๋ว จินตนาการไม่รู้จบ",
   "A LITTLE WORLD OF YOUR OWN": "โลกใบเล็กในแบบของเรา",
   "MADE OF YOUR IMAGINATION": "สร้างจากจินตนาการของเรา",
   "Little pet.": "เพื่อนตัวจิ๋ว",
@@ -276,7 +276,7 @@ export const TH = {
   "Create an account": "สร้างบัญชีใหม่",
   "New here?": "เพิ่งมาใหม่?",
   "Already have an account?": "มีบัญชีแล้ว?",
-  "New accounts start with 10 free points.": "บัญชีใหม่ได้ 10 แต้มฟรี",
+  "New accounts start with 100 free points.": "บัญชีใหม่ได้ 100 แต้มฟรี",
   "Check your email to confirm your account, then sign in.":
     "เช็กอีเมลเพื่อยืนยันบัญชี แล้วค่อยเข้าสู่ระบบ",
   "Could not sign in.": "เข้าสู่ระบบไม่ได้",

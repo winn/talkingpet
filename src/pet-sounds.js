@@ -68,7 +68,7 @@ export async function ensureSfxLibrary({ loader = listActiveAudio } = {}) {
       })
       .catch((err) => {
         loadPromise = null;
-        console.warn("[PaintMomo] Could not load sound effects:", err);
+        console.warn("[TalkingMomo] Could not load sound effects:", err);
         return [];
       });
   }
@@ -112,7 +112,7 @@ export function playClip(clip, { AudioCtor = globalThis.Audio } = {}) {
     );
     return audio;
   } catch (err) {
-    console.warn("[PaintMomo] Could not play sound:", err);
+    console.warn("[TalkingMomo] Could not play sound:", err);
     return null;
   }
 }
@@ -173,7 +173,7 @@ function firePetReaction(
   try {
     react?.(petType);
   } catch (err) {
-    console.warn("[PaintMomo] Pet reaction failed:", err);
+    console.warn("[TalkingMomo] Pet reaction failed:", err);
   }
   return true;
 }

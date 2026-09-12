@@ -111,7 +111,7 @@ async function forgetOne(id) {
   } catch (err) {
     if (button) button.disabled = false;
     hooks.notify("Could not forget that. Please try again.");
-    console.error("[PaintMomo] forget memory failed:", err);
+    console.error("[TalkingMomo] forget memory failed:", err);
   }
 }
 
@@ -125,7 +125,7 @@ async function forgetAll() {
     announce();
   } catch (err) {
     hooks.notify("Could not forget that. Please try again.");
-    console.error("[PaintMomo] forget all memories failed:", err);
+    console.error("[TalkingMomo] forget all memories failed:", err);
   } finally {
     button.disabled = false;
   }
@@ -154,7 +154,7 @@ async function addManual(event) {
     keyInput.focus();
   } catch (err) {
     hooks.notify("Could not save that. Please try again.");
-    console.error("[PaintMomo] add memory failed:", err);
+    console.error("[TalkingMomo] add memory failed:", err);
   } finally {
     submit.disabled = false;
   }

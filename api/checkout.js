@@ -48,7 +48,7 @@ export async function POST(request) {
             currency: pack.currency,
             unit_amount: pack.price_cents,
             product_data: {
-              name: `Paint Momo — ${pack.label}`,
+              name: `Talking Momo — ${pack.label}`,
               description: `${pack.points.toLocaleString("en-US")} points`,
             },
           },

@@ -379,7 +379,7 @@ async function endTalkSession({ extract = false } = {}) {
     try {
       await extractChatToMemory({ silent: true, clear: true });
     } catch (err) {
-      console.warn("[PaintMomo] extract on leave failed:", err);
+      console.warn("[TalkingMomo] extract on leave failed:", err);
     }
   }
   closeChatLog();
@@ -454,7 +454,7 @@ async function ensureVoiceConnected() {
       document.querySelector("#bcw-rt-call-btn")?.click();
     }
   } catch (err) {
-    console.warn("[PaintMomo] auto-connect failed:", err);
+    console.warn("[TalkingMomo] auto-connect failed:", err);
   }
 
   for (let i = 0; i < 40; i++) {
@@ -491,7 +491,7 @@ async function sendTypedMessage(text) {
     try {
       window.ChatWidget.sendUserMessage(text);
     } catch (err) {
-      console.warn("[PaintMomo] sendUserMessage failed:", err);
+      console.warn("[TalkingMomo] sendUserMessage failed:", err);
     }
     const ok = await ensureVoiceConnected();
     if (!ok)
@@ -501,7 +501,7 @@ async function sendTypedMessage(text) {
   try {
     window.ChatWidget.sendUserMessage(text);
   } catch (err) {
-    console.warn("[PaintMomo] sendUserMessage failed:", err);
+    console.warn("[TalkingMomo] sendUserMessage failed:", err);
   }
 }
 
@@ -590,7 +590,7 @@ async function pushGreetingToWidget() {
         greetingInstruction,
       });
     } catch (err) {
-      console.warn("[PaintMomo] updateConfig memory update error:", err);
+      console.warn("[TalkingMomo] updateConfig memory update error:", err);
     }
   }
 }
@@ -928,7 +928,7 @@ async function handleSavePet({ colorsOnly = false } = {}) {
       );
     }
   } catch (err) {
-    console.error("[PaintMomo] Save failed:", err);
+    console.error("[TalkingMomo] Save failed:", err);
     notify("Could not save yet. Your work is still here. Please try again.");
     if (!promptOnly) resumePainterScene();
   } finally {
@@ -960,7 +960,7 @@ function hookWidgetUserMessages() {
     });
   } catch (err) {
     widgetUserMessagesHooked = false;
-    console.warn("[PaintMomo] onUserMessage hook failed:", err);
+    console.warn("[TalkingMomo] onUserMessage hook failed:", err);
   }
 }
 
@@ -1064,7 +1064,7 @@ export async function launchPetChat(pet) {
       watchChatSurface(backgroundColor, backgroundId, launchToken);
       return;
     } catch (err) {
-      console.warn("[PaintMomo] updateConfig error, reloading script:", err);
+      console.warn("[TalkingMomo] updateConfig error, reloading script:", err);
     }
   }
 
@@ -2917,7 +2917,7 @@ window.addEventListener("languagechange", async () => {
           greetingInstruction,
         });
       } catch (err) {
-        console.warn("[PaintMomo] updateConfig language update error:", err);
+        console.warn("[TalkingMomo] updateConfig language update error:", err);
       }
     }
     localizeText(

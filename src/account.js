@@ -140,7 +140,7 @@ export async function spendForTalk() {
     return false;
   } catch (err) {
     hooks.notify("Could not check your points. Please try again.");
-    console.error("[PaintMomo] spend_points failed:", err);
+    console.error("[TalkingMomo] spend_points failed:", err);
     return false;
   }
 }
@@ -389,7 +389,7 @@ function bindAccountSheet() {
       try {
         await hooks.beforeSignOut();
       } catch (err) {
-        console.warn("[PaintMomo] beforeSignOut failed:", err);
+        console.warn("[TalkingMomo] beforeSignOut failed:", err);
       }
       await signOut();
     } finally {

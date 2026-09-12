@@ -182,7 +182,7 @@ export async function rememberSession({
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      console.warn("[PaintMomo] remember failed:", data.error || res.status);
+      console.warn("[TalkingMomo] remember failed:", data.error || res.status);
       return { added: [], failed: true };
     }
     return {
@@ -190,7 +190,7 @@ export async function rememberSession({
       failed: false,
     };
   } catch (err) {
-    console.warn("[PaintMomo] remember failed:", err);
+    console.warn("[TalkingMomo] remember failed:", err);
     return { added: [], failed: true };
   }
 }
@@ -216,7 +216,7 @@ export async function rememberFromRules({ pet, transcript }) {
     try {
       added.push(await saveMemory({ key, value, petName: pet.name }));
     } catch (err) {
-      console.warn("[PaintMomo] local remember failed:", err);
+      console.warn("[TalkingMomo] local remember failed:", err);
     }
   }
   return added;

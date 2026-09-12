@@ -112,7 +112,7 @@ export const GEMINI_URL =
 function planInstruction(kind, { count, brief, durationMs, taken, takenCues }) {
   if (kind === "music") {
     return [
-      `Plan ${count} short instrumental background music pieces for Paint Momo, a painting studio where children (age 8+) create a cartoon cat or dog and chat with it.`,
+      `Plan ${count} short instrumental background music pieces for Talking Momo, a studio where children (age 8+) create a cartoon cat or dog and chat with it.`,
       `Every piece plays quietly under a talking pet, so it must be instrumental, gentle on the ears, and loopable.`,
       `Return JSON with "tracks": each has title (short English), prompt (one or two English sentences for a music model: instruments, tempo, mood, "no vocals"), seconds (${durationMs ? Math.round(durationMs / 1000) : "one of 30, 60, 90, 120"}), mood (one word: calm, happy, playful, magical, cozy, adventure, sleepy), tags (up to 8 English keywords).`,
       `Make the pieces clearly different from each other.`,
@@ -123,7 +123,7 @@ function planInstruction(kind, { count, brief, durationMs, taken, takenCues }) {
       .join("\n");
   }
   return [
-    `Plan ${count} short sound effects for Paint Momo, a painting studio where children (age 8+) create a cartoon cat or dog and chat with it.`,
+    `Plan ${count} short sound effects for Talking Momo, a studio where children (age 8+) create a cartoon cat or dog and chat with it.`,
     `Good subjects: cat and dog sounds (meow, purr, mew, bark, pant), little paws crawling or scurrying, ambient room and outdoor noise, playful magic chimes, happy reactions. No music, no spoken words.`,
     `Return JSON with "clips": each has title (short English), prompt (one or two English sentences describing the sound clearly, ending with a tag in square brackets such as "A small cat meowing once, cute and clear [meow]"; tags are lowercase letters and underscores and unique in this set), seconds (${durationMs ? Math.round(durationMs / 1000) : "one of 1, 2, 3, 5, 8"}), tags (up to 8 English keywords).`,
     `Make the clips clearly different from each other.`,

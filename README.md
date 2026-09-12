@@ -1,4 +1,4 @@
-# Paint Momo
+# Talking Momo
 
 A responsive pet-painting studio for children aged 8 and up. Choose a Mini Cat or Mini Dog, paint its texture, build a personality prompt with presets, then meet the pet in the existing hosted chat experience.
 
@@ -79,7 +79,7 @@ The schema lives in `supabase/migrations/`. Apply it to your project with the Su
 
 Everyone signs in before using the studio (`src/auth.js`, `src/account.js`). Sign-in is Supabase Auth with email + password, plus Google when the Google provider is turned on in the Supabase dashboard (Authentication → Providers; add the site URL to the redirect allow-list).
 
-- **Points.** Every new account starts with 10 points. Talking to a pet costs 1 point (`TALK_COST` in `src/auth.js`), spent through the `spend_points` database function before the chat opens. The balance shows in the hub header; tapping it opens the account sheet.
+- **Points.** Every new account starts with 100 points. Talking to a pet costs 1 point (`TALK_COST` in `src/auth.js`), spent through the `spend_points` database function before the chat opens. The balance shows in the hub header; tapping it opens the account sheet.
 - **Ledger.** Every change is a row in `public.point_ledger` (sign-up, talk, admin grant, purchase). Purchases are idempotent on the Stripe session id.
 - **Admin.** Emails listed in `public.admin_emails` become admins on sign-up; admins can also promote others. Admins open the Admin screen from the account sheet to see every user, give or take points, and edit the point packs for sale.
 - **Coupons.** Admins create codes (a custom one or a batch of generated `MOMO-…` codes) with a point value, a use limit per code, and an optional claim-by date. Users redeem a code from the account sheet; each account can use a code once and the points land in the ledger as `coupon`.

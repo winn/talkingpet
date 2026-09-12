@@ -89,7 +89,7 @@ export function triggerRandomPetReaction(
         api.playAnimation(action.id);
         move = action.id;
       } catch (err) {
-        console.warn("[PaintMomo] playAnimation failed:", err);
+        console.warn("[TalkingMomo] playAnimation failed:", err);
       }
     }
   }
@@ -100,7 +100,7 @@ export function triggerRandomPetReaction(
         api.setEmotion(emotion.id);
         face = emotion.id;
       } catch (err) {
-        console.warn("[PaintMomo] setEmotion failed:", err);
+        console.warn("[TalkingMomo] setEmotion failed:", err);
       }
     }
   }
@@ -247,7 +247,7 @@ export function renderActionTray(tray, api, pose) {
         try {
           api.playAnimation(item.id);
         } catch (err) {
-          console.warn("[PaintMomo] playAnimation failed:", err);
+          console.warn("[TalkingMomo] playAnimation failed:", err);
         }
       }),
     );
@@ -258,7 +258,7 @@ export function renderActionTray(tray, api, pose) {
         try {
           api.setEmotion(item.id);
         } catch (err) {
-          console.warn("[PaintMomo] setEmotion failed:", err);
+          console.warn("[TalkingMomo] setEmotion failed:", err);
         }
       }),
     );
