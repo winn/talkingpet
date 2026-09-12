@@ -305,6 +305,9 @@ test("on-device rules catch names, numbers, birthdays, favourites and remember r
     { key: "age", value: "8" },
     { key: "favorite_food", value: "ไอติมชาเขียว" },
   ]);
+  assert.deepEqual(pick("ชอบพิซซ่าฮาวายเอี้ยน"), [
+    { key: "favorite_food", value: "พิซซ่าฮาวายเอี้ยน" },
+  ]);
   assert.deepEqual(pick("ชอบวิชาวิทยาศาสตร์มากเลย"), [
     { key: "favorite_subject", value: "วิทยาศาสตร์" },
   ]);

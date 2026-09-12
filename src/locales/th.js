@@ -328,6 +328,7 @@ export const TH = {
     "ตอนนี้พิมพ์แชทยังไม่ได้ ลองคุยด้วยเสียงก่อนนะ",
   "Saved to memory: {n} new things. Chat cleared.": "จำไว้แล้ว {n} เรื่องใหม่ และล้างแชทแล้ว",
   "Chat cleared. Anything clear was already remembered.": "ล้างแชทแล้ว เรื่องที่ชัดเจนถูกจำไว้ระหว่างคุยแล้ว",
+  "Could not save new memories yet. Try again from My pets.": "ยังบันทึกความจำใหม่ไม่ได้ ลองกดกลับ My pets อีกครั้ง",
   Phone: "เบอร์โทร",
   "Buying points is not set up yet. Ask an admin for points.":
     "ยังซื้อแต้มไม่ได้ในตอนนี้ ขอแต้มจากผู้ดูแลได้เลย",

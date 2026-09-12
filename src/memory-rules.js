@@ -184,14 +184,24 @@ function matchFavorites(text, found) {
     );
     if (m) push(found, key, thaiValue(m[1]));
   }
-  let m = text.match(/ชอบกิน\s*(.+)/u);
-  if (m) push(found, "favorite_food", thaiValue(m[1]));
-  m = text.match(/ชอบสี\s*(.+)/u);
+  let m = text.match(/ชอบสี\s*(.+)/u);
   if (m) push(found, "favorite_color", thaiValue(m[1]));
   m = text.match(/ชอบวิชา\s*(.+)/u);
   if (m) push(found, "favorite_subject", thaiValue(m[1]));
   m = text.match(/ชอบเล่น\s*(.+)/u);
   if (m) push(found, "favorite_game", thaiValue(m[1]));
+  // "ชอบกิน…", "ชอบทาน…", or bare "ชอบพิซซ่า…" (kids often skip กิน)
+  m = text.match(/ชอบ(?:กิน|ทาน)?\s*(.+)/u);
+  if (m) {
+    const value = thaiValue(m[1]);
+    if (
+      value &&
+      !/^(สี|วิชา|เล่น|ดู|ฟัง|ไป|มา|ที่|คน|เพื่อน|มาก|จัง|ที่สุด|เลย)/u.test(
+        value,
+      )
+    )
+      push(found, "favorite_food", value);
+  }
   for (const [words, key] of EN_KEYS) {
     if (["name", "nickname", "phone", "birthday", "age"].includes(key))
       continue;

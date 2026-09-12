@@ -70,6 +70,7 @@ import {
   listMemories,
   readWidgetHistory,
   readWidgetStoreHistory,
+  rememberFromRules,
   rememberSession,
 } from "./memories.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
@@ -132,6 +133,10 @@ let talkStartedAt = 0;
 let stopLiveMemory = null;
 // Messages typed in the chat window; the widget's store holds the spoken ones.
 let typedTurns = [];
+// Last transcript that still had user turns — hangup must not wipe this before
+// leave/retry, and we only clear the chat after a successful remember.
+let sessionTranscriptBackup = [];
+let sessionRememberDone = false;
 let threeRenderer = null;
 let threeControls = null;
 let isPainterRunning = false;
@@ -372,7 +377,7 @@ async function endTalkSession({ extract = false } = {}) {
   stopLiveMemory?.();
   if (extract && activeChatPet) {
     try {
-      await extractChatToMemory({ silent: true });
+      await extractChatToMemory({ silent: true, clear: true });
     } catch (err) {
       console.warn("[PaintMomo] extract on leave failed:", err);
     }
@@ -380,6 +385,8 @@ async function endTalkSession({ extract = false } = {}) {
   closeChatLog();
   typedTurns = [];
   clearCapturedTurns();
+  sessionTranscriptBackup = [];
+  sessionRememberDone = false;
   stopChatCapture();
   chatLaunchToken++;
   activeChatPet = null;
@@ -413,7 +420,23 @@ function currentTurns() {
   );
 }
 function collectTalkTranscript() {
-  return currentTurns().map(({ role, text }) => ({ role, text }));
+  const turns = currentTurns().map(({ role, text }) => ({ role, text }));
+  if (turns.some((turn) => turn.role === "user")) {
+    sessionTranscriptBackup = turns;
+    return turns;
+  }
+  // Hangup / clear may empty the live log; reuse the last good snapshot.
+  return sessionTranscriptBackup;
+}
+
+function clearTalkChatLog() {
+  try {
+    window.ChatWidget?.clearHistory?.();
+  } catch {}
+  typedTurns = [];
+  clearCapturedTurns();
+  talkStartedAt = Date.now();
+  renderChatLog([]);
 }
 
 /** Start the realtime call if needed so typed lines can reach the pet. */
@@ -483,38 +506,63 @@ async function sendTypedMessage(text) {
 }
 
 /**
- * End-of-session memory: one LLM pass over the log, then clear the chat.
- * Not run while chatting turn-by-turn (that used to reset the call).
+ * End-of-session memory: one LLM pass, then on-device rules if needed.
+ * Hangup keeps the log so leave/retry can still save; leave clears after.
  */
-async function extractChatToMemory({ silent = false } = {}) {
+async function extractChatToMemory({ silent = false, clear = true } = {}) {
   const pet = activeChatPet;
   if (!pet) return 0;
   const launchToken = chatLaunchToken;
+  if (sessionRememberDone) {
+    if (clear) clearTalkChatLog();
+    return 0;
+  }
   const transcript = collectTalkTranscript();
+  const hasUser = transcript.some((turn) => turn.role === "user");
   let added = [];
-  if (transcript.some((turn) => turn.role === "user"))
-    added = await rememberSession({ pet, language: getLanguage(), transcript });
+  if (hasUser) {
+    added = await rememberSession({
+      pet,
+      language: getLanguage(),
+      transcript,
+    });
+    if (!added.length) {
+      const local = await rememberFromRules({ pet, transcript });
+      added = local.filter((row) => {
+        const prev = activeMemories.find((m) => m.key === row.key);
+        return (
+          !prev ||
+          String(prev.value).toLowerCase() !== String(row.value).toLowerCase()
+        );
+      });
+      // Rules matched but values were already known — treat as done.
+      if (!added.length && local.length) sessionRememberDone = true;
+    }
+  }
   if (launchToken !== chatLaunchToken) return 0;
   for (const row of added) {
     activeMemories = [row, ...activeMemories.filter((m) => m.key !== row.key)];
     noteMemorySaved(row);
   }
-  // Do not pushGreetingToWidget here — updating the running call mid-talk
-  // feels like a reset. New facts apply on the next Talk.
-  try {
-    window.ChatWidget?.clearHistory?.();
-  } catch {}
-  typedTurns = [];
-  clearCapturedTurns();
-  talkStartedAt = Date.now();
-  renderChatLog([]);
-  if (!silent || added.length)
+  if (added.length) sessionRememberDone = true;
+  // Never wipe a user transcript after a failed save — leave can retry.
+  const shouldClear = clear && (added.length > 0 || !hasUser);
+  if (shouldClear) {
+    clearTalkChatLog();
+    sessionTranscriptBackup = [];
+  }
+  if (added.length)
+    notify("Saved to memory: {n} new things. Chat cleared.", {
+      n: added.length,
+    });
+  else if (!silent)
     notify(
-      added.length
-        ? "Saved to memory: {n} new things. Chat cleared."
+      hasUser
+        ? "Could not save new memories yet. Try again from My pets."
         : "Chat cleared. Anything clear was already remembered.",
-      { n: added.length },
     );
+  else if (hasUser && clear)
+    notify("Could not save new memories yet. Try again from My pets.");
   return added.length;
 }
 
@@ -551,7 +599,10 @@ function startVoiceSessionWatch(launchToken) {
       connected = Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
     } catch {}
     if (wasConnected && !connected) {
-      busy = busy.then(() => extractChatToMemory({ silent: true }));
+      // Keep the log until leave — hangup alone must not erase unsaved facts.
+      busy = busy.then(() =>
+        extractChatToMemory({ silent: true, clear: false }),
+      );
     }
     wasConnected = connected;
   };
@@ -938,6 +989,8 @@ export async function launchPetChat(pet) {
   talkStartedAt = Date.now();
   typedTurns = [];
   clearCapturedTurns();
+  sessionTranscriptBackup = [];
+  sessionRememberDone = false;
   const paintCaptured = () => {
     if (launchToken !== chatLaunchToken) return;
     if (isChatLogOpen()) renderChatLog(currentTurns());
@@ -2817,7 +2870,7 @@ window.addEventListener("memorieschange", () => {
 // Closing the tab mid-talk: same 🧠 action as far as pagehide allows —
 // keepalive summarise, then clear the widget log before unload.
 window.addEventListener("pagehide", () => {
-  if (!activeChatPet) return;
+  if (!activeChatPet || sessionRememberDone) return;
   const pet = activeChatPet;
   const transcript = collectTalkTranscript();
   rememberSession({
@@ -2825,6 +2878,7 @@ window.addEventListener("pagehide", () => {
     language: getLanguage(),
     transcript,
   });
+  void rememberFromRules({ pet, transcript });
   try {
     window.ChatWidget?.clearHistory?.();
   } catch {}

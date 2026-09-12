@@ -10,6 +10,7 @@
 // `public.user_memories`, scoped to the account by row level security. Nothing
 // here reads the widget's source.
 import { getSession, getSupabase } from "./auth.js";
+import { extractMemories } from "./memory-rules.js";
 import { isInternalPromptText } from "./prompt-filter.js";
 
 export { isInternalPromptText } from "./prompt-filter.js";
@@ -177,4 +178,31 @@ export async function rememberSession({
     console.warn("[PaintMomo] remember failed:", err);
     return [];
   }
+}
+
+/**
+ * On-device fallback when the LLM summary finds nothing or the API fails.
+ * Catches clear kid phrases like "ชอบพิซซ่าฮาวายเอี้ยน" without a round-trip.
+ */
+export async function rememberFromRules({ pet, transcript }) {
+  if (!pet || !transcript?.some((t) => t.role === "user")) return [];
+  const byKey = new Map();
+  let noteIndex = 1;
+  for (const turn of transcript) {
+    if (turn.role !== "user") continue;
+    for (const fact of extractMemories(turn.text, { noteIndex })) {
+      byKey.set(fact.key, fact.value);
+      if (String(fact.key).startsWith("note_")) noteIndex++;
+    }
+  }
+  if (!byKey.size) return [];
+  const added = [];
+  for (const [key, value] of byKey) {
+    try {
+      added.push(await saveMemory({ key, value, petName: pet.name }));
+    } catch (err) {
+      console.warn("[PaintMomo] local remember failed:", err);
+    }
+  }
+  return added;
 }
