@@ -3,6 +3,7 @@
 // it. main.js owns the data (the widget's public store plus typed messages)
 // and the actions; this file owns the panel.
 import { localizeText, t } from "./i18n.js";
+import { historyItemText } from "./memories.js";
 
 const $ = (selector) => document.querySelector(selector);
 const USER = new Set(["user", "me", "human", "friend", "child"]);
@@ -31,7 +32,7 @@ export function mergeTurns(storeItems = [], typedTurns = [], since = 0) {
     if (!item || typeof item !== "object") return;
     const timestamp = Number(item.timestamp ?? item.time ?? 0);
     if (since && timestamp && timestamp < since) return;
-    const text = String(item.text ?? item.uiText ?? item.message ?? "").trim();
+    const text = historyItemText(item);
     if (!text) return;
     const who = String(item.sender ?? item.role ?? "").toLowerCase();
     const role = USER.has(who) ? "user" : "pet";

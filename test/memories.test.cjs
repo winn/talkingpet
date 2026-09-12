@@ -15,11 +15,17 @@ test("transcripts normalise widget history items and {role,text} pairs", async (
     { role: "pet", text: "" },
     null,
     { role: "user", message: "I like green tea ice cream" },
+    {
+      sender: "bot",
+      reply: { type: "text", text: "Yum!" },
+      timestamp: 9,
+    },
   ]);
   assert.deepEqual(turns, [
     { role: "user", text: "My name is John" },
     { role: "pet", text: "Hi John!" },
     { role: "user", text: "I like green tea ice cream" },
+    { role: "pet", text: "Yum!" },
   ]);
   const long = normalizeTranscript(
     Array.from({ length: MEMORY_LIMITS.maxTurns + 5 }, (_, i) => ({

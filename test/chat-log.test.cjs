@@ -25,6 +25,29 @@ test("mergeTurns joins store + typed lines and drops duplicates", async () => {
   );
 });
 
+test("mergeTurns reads bot reply.text the way the realtime widget stores it", async () => {
+  const { mergeTurns } = await import("../src/chat-log.js");
+  const turns = mergeTurns(
+    [
+      { sender: "user", text: "สวัสดี", uiText: "สวัสดี", timestamp: 10 },
+      {
+        sender: "bot",
+        reply: { type: "text", text: "หวัดดีจ้า" },
+        timestamp: 20,
+      },
+    ],
+    [],
+    0,
+  );
+  assert.deepEqual(
+    turns.map(({ role, text }) => ({ role, text })),
+    [
+      { role: "user", text: "สวัสดี" },
+      { role: "pet", text: "หวัดดีจ้า" },
+    ],
+  );
+});
+
 test("mergeTurns ignores empty text and unknown shapes", async () => {
   const { mergeTurns } = await import("../src/chat-log.js");
   assert.deepEqual(mergeTurns([null, { sender: "user", text: "  " }], []), []);

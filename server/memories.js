@@ -20,7 +20,11 @@ export function normalizeTranscript(raw) {
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const who = String(item.role ?? item.sender ?? "").toLowerCase();
-    const text = String(item.text ?? item.uiText ?? item.message ?? "")
+    const reply =
+      item.reply && typeof item.reply === "object"
+        ? item.reply.text ?? item.reply.uiText ?? item.reply.message
+        : item.reply;
+    const text = String(item.text ?? item.uiText ?? item.message ?? reply ?? "")
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, MEMORY_LIMITS.maxTurnChars);

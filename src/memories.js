@@ -2,16 +2,35 @@
 //
 // The hosted widget exposes its conversation through the public store on
 // window.ChatWidget (getState().chatHistory) and also persists it in
-// localStorage under `botnoi_history_<id>` keys, both as
-// { sender, text, uiText, timestamp } items. When a talk session ends we read
-// the turns newer than the session start, send them to the server to be
-// summarised, and store the resulting facts in `public.user_memories`, scoped
-// to the account by row level security. Nothing here reads the widget's source.
+// localStorage under `botnoi_history_<id>` keys. User turns are usually
+// { sender, text, uiText, timestamp }; bot turns often use
+// { sender, reply: { type, text }, timestamp } instead of a top-level text.
+// When a talk session ends we read the turns newer than the session start,
+// send them to the server to be summarised, and store the resulting facts in
+// `public.user_memories`, scoped to the account by row level security. Nothing
+// here reads the widget's source.
 import { getSession, getSupabase } from "./auth.js";
 
 const TABLE = "user_memories";
 export const HISTORY_KEY_PREFIX = "botnoi_history_";
 const USER_SENDERS = new Set(["user", "me", "human", "friend", "child"]);
+
+/**
+ * Plain text from a widget history item. Bot replies often live under
+ * `reply.text` rather than `text` / `uiText`.
+ */
+export function historyItemText(item) {
+  if (!item || typeof item !== "object") return "";
+  const direct = item.text ?? item.uiText ?? item.message;
+  if (direct != null && String(direct).trim()) return String(direct).trim();
+  const reply = item.reply;
+  if (typeof reply === "string") return reply.trim();
+  if (reply && typeof reply === "object") {
+    const nested = reply.text ?? reply.uiText ?? reply.message;
+    if (nested != null) return String(nested).trim();
+  }
+  return "";
+}
 
 export async function listMemories() {
   const session = await getSession();
@@ -101,7 +120,7 @@ export function transcriptSince(items, since = 0) {
     if (!item || typeof item !== "object") continue;
     const stamp = Number(item.timestamp ?? item.time ?? 0);
     if (since && stamp && stamp < since) continue;
-    const text = String(item.text ?? item.uiText ?? item.message ?? "").trim();
+    const text = historyItemText(item);
     if (!text) continue;
     const who = String(item.sender ?? item.role ?? "").toLowerCase();
     const role = USER_SENDERS.has(who) ? "user" : "pet";

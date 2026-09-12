@@ -61,6 +61,7 @@ import {
 } from "./chat-log.js";
 import { keyLabel } from "./memory-keys.js";
 import {
+  historyItemText,
   listMemories,
   readWidgetHistory,
   readWidgetStoreHistory,
@@ -412,8 +413,19 @@ async function sendTypedMessage(text) {
   const launchToken = chatLaunchToken;
   typedTurns.push({ sender: "user", text, timestamp: Date.now() });
   renderChatLog(currentTurns());
+  let connected = false;
   try {
-    window.ChatWidget?.sendUserMessage?.(text);
+    connected = Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
+  } catch {}
+  if (!window.ChatWidget?.sendUserMessage) {
+    notify("Chat text is not available right now. Try the voice call.");
+    return;
+  }
+  if (!connected) {
+    notify("Tap the call button first, then type.");
+  }
+  try {
+    window.ChatWidget.sendUserMessage(text);
   } catch (err) {
     console.warn("[PaintMomo] sendUserMessage failed:", err);
   }
@@ -482,14 +494,22 @@ function startLiveMemory(pet, launchToken) {
   stopLiveMemory?.();
   const seen = new Set();
   let busy = Promise.resolve();
+  const refreshChat = () => {
+    if (launchToken !== chatLaunchToken) return;
+    if (isChatLogOpen()) renderChatLog(currentTurns());
+  };
   const check = () => {
     if (launchToken !== chatLaunchToken) return;
-    for (const item of readWidgetStoreHistory(window)) {
+    const items = [
+      ...readWidgetStoreHistory(window),
+      ...readWidgetHistory(),
+    ];
+    for (const item of items) {
       if (String(item?.sender ?? item?.role ?? "").toLowerCase() !== "user")
         continue;
       const stamp = Number(item.timestamp ?? 0);
       if (stamp && stamp < talkStartedAt) continue;
-      const text = String(item.text ?? item.uiText ?? "").trim();
+      const text = historyItemText(item);
       const id = `${stamp}|${text}`;
       if (!text || seen.has(id)) continue;
       seen.add(id);
@@ -499,8 +519,7 @@ function startLiveMemory(pet, launchToken) {
   let wasConnected = false;
   const tick = () => {
     check();
-    if (launchToken !== chatLaunchToken) return;
-    if (isChatLogOpen()) renderChatLog(currentTurns());
+    refreshChat();
     // A dropped or ended voice session saves the log before it is lost.
     let connected = false;
     try {
@@ -511,9 +530,24 @@ function startLiveMemory(pet, launchToken) {
     }
     wasConnected = connected;
   };
-  const timer = setInterval(tick, 1200);
+  const timer = setInterval(tick, 800);
+  let unsubscribe = null;
+  try {
+    const sub = window.ChatWidget?.subscribe;
+    if (typeof sub === "function") {
+      unsubscribe = sub.call(window.ChatWidget, () => {
+        check();
+        refreshChat();
+      });
+    }
+  } catch (err) {
+    console.warn("[PaintMomo] chat subscribe failed:", err);
+  }
   stopLiveMemory = () => {
     clearInterval(timer);
+    try {
+      unsubscribe?.();
+    } catch {}
     stopLiveMemory = null;
   };
 }

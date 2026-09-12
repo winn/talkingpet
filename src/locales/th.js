@@ -320,6 +320,9 @@ export const TH = {
   "Type a message…": "พิมพ์ข้อความ…",
   Message: "ข้อความ",
   Send: "ส่ง",
+  "Tap the call button first, then type.": "กดปุ่มโทรก่อน แล้วค่อยพิมพ์",
+  "Chat text is not available right now. Try the voice call.":
+    "ตอนนี้พิมพ์แชทยังไม่ได้ ลองคุยด้วยเสียงก่อนนะ",
   "Saved to memory: {n} new things. Chat cleared.": "จำไว้แล้ว {n} เรื่องใหม่ และล้างแชทแล้ว",
   "Chat cleared. Anything clear was already remembered.": "ล้างแชทแล้ว เรื่องที่ชัดเจนถูกจำไว้ระหว่างคุยแล้ว",
   Phone: "เบอร์โทร",
