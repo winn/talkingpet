@@ -321,6 +321,9 @@ export const TH = {
   Message: "ข้อความ",
   Send: "ส่ง",
   "Tap the call button first, then type.": "กดปุ่มโทรก่อน แล้วค่อยพิมพ์",
+  "Connecting to your pet…": "กำลังเชื่อมต่อกับเพื่อน…",
+  "Could not connect yet. Tap the call button, then try again.":
+    "ยังเชื่อมต่อไม่ได้ กดปุ่มโทรแล้วลองอีกครั้งนะ",
   "Chat text is not available right now. Try the voice call.":
     "ตอนนี้พิมพ์แชทยังไม่ได้ ลองคุยด้วยเสียงก่อนนะ",
   "Saved to memory: {n} new things. Chat cleared.": "จำไว้แล้ว {n} เรื่องใหม่ และล้างแชทแล้ว",

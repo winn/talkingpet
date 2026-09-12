@@ -416,22 +416,64 @@ function collectTalkTranscript() {
   return currentTurns().map(({ role, text }) => ({ role, text }));
 }
 
-/** Typed in the chat window: show it and send it to the pet. */
+/** Start the realtime call if needed so typed lines can reach the pet. */
+async function ensureVoiceConnected() {
+  let connected = false;
+  try {
+    connected = Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
+  } catch {}
+  if (connected) return true;
+
+  try {
+    if (typeof window.ChatWidget?.connect === "function") {
+      await window.ChatWidget.connect();
+    } else {
+      document.querySelector("#bcw-rt-call-btn")?.click();
+    }
+  } catch (err) {
+    console.warn("[PaintMomo] auto-connect failed:", err);
+  }
+
+  for (let i = 0; i < 40; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    try {
+      if (window.ChatWidget?.getRealtimeState?.()?.connected) return true;
+    } catch {}
+  }
+  try {
+    return Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
+  } catch {
+    return false;
+  }
+}
+
+/** Typed in the chat window: show it and send it to the pet (auto-connects). */
 async function sendTypedMessage(text) {
   const pet = activeChatPet;
   if (!pet) return;
   typedTurns.push({ sender: "user", text, timestamp: Date.now() });
   renderChatLog(currentTurns());
-  let connected = false;
-  try {
-    connected = Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
-  } catch {}
   if (!window.ChatWidget?.sendUserMessage) {
     notify("Chat text is not available right now. Try the voice call.");
     return;
   }
+  let connected = false;
+  try {
+    connected = Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
+  } catch {}
   if (!connected) {
-    notify("Tap the call button first, then type.");
+    notify("Connecting to your pet…");
+    // Queue the line, then start the call — the widget flushes the queue
+    // once the realtime session is up.
+    try {
+      window.ChatWidget.sendUserMessage(text);
+    } catch (err) {
+      console.warn("[PaintMomo] sendUserMessage failed:", err);
+    }
+    const ok = await ensureVoiceConnected();
+    if (!ok)
+      notify("Could not connect yet. Tap the call button, then try again.");
+    return;
   }
   try {
     window.ChatWidget.sendUserMessage(text);
