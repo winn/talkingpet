@@ -50,7 +50,6 @@ import {
   noteMemorySaved,
   openMemorySheet,
 } from "./memory-panel.js";
-import { extractMemories } from "./memory-rules.js";
 import {
   closeChatLog,
   initChatLog,
@@ -67,14 +66,11 @@ import {
   startChatCapture,
   stopChatCapture,
 } from "./chat-capture.js";
-import { keyLabel } from "./memory-keys.js";
 import {
-  historyItemText,
   listMemories,
   readWidgetHistory,
   readWidgetStoreHistory,
   rememberSession,
-  saveMemory,
 } from "./memories.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
 import {
@@ -420,11 +416,10 @@ function collectTalkTranscript() {
   return currentTurns().map(({ role, text }) => ({ role, text }));
 }
 
-/** Typed in the chat window: show it, send it to the pet, and check it for facts. */
+/** Typed in the chat window: show it and send it to the pet. */
 async function sendTypedMessage(text) {
   const pet = activeChatPet;
   if (!pet) return;
-  const launchToken = chatLaunchToken;
   typedTurns.push({ sender: "user", text, timestamp: Date.now() });
   renderChatLog(currentTurns());
   let connected = false;
@@ -443,12 +438,11 @@ async function sendTypedMessage(text) {
   } catch (err) {
     console.warn("[PaintMomo] sendUserMessage failed:", err);
   }
-  await rememberLiveTurn(pet, text, launchToken);
 }
 
 /**
- * The chat window's memory button, also run when the voice session drops:
- * summarise the log into permanent memories, then clear the log.
+ * End-of-session memory: one LLM pass over the log, then clear the chat.
+ * Not run while chatting turn-by-turn (that used to reset the call).
  */
 async function extractChatToMemory({ silent = false } = {}) {
   const pet = activeChatPet;
@@ -463,7 +457,8 @@ async function extractChatToMemory({ silent = false } = {}) {
     activeMemories = [row, ...activeMemories.filter((m) => m.key !== row.key)];
     noteMemorySaved(row);
   }
-  if (added.length) pushGreetingToWidget();
+  // Do not pushGreetingToWidget here — updating the running call mid-talk
+  // feels like a reset. New facts apply on the next Talk.
   try {
     window.ChatWidget?.clearHistory?.();
   } catch {}
@@ -502,36 +497,13 @@ async function pushGreetingToWidget() {
   }
 }
 
-// While talking, every new turn from the friend is checked against the
-// on-device rules (name, phone, birthday, favourites, "please remember…") and
-// anything found is saved at once, so nothing waits for the end of the chat.
-function startLiveMemory(pet, launchToken) {
+// Watch for the voice call ending so we can run the one-shot memory summary.
+function startVoiceSessionWatch(launchToken) {
   stopLiveMemory?.();
-  const seen = new Set();
   let busy = Promise.resolve();
-  const check = () => {
-    if (launchToken !== chatLaunchToken) return;
-    const items = [
-      ...readWidgetStoreHistory(window),
-      ...readWidgetHistory(),
-      ...getCapturedTurns(),
-    ];
-    for (const item of items) {
-      if (String(item?.sender ?? item?.role ?? "").toLowerCase() !== "user")
-        continue;
-      const stamp = Number(item.timestamp ?? 0);
-      if (stamp && stamp < talkStartedAt) continue;
-      const text = historyItemText(item);
-      const id = `${stamp}|${text}`;
-      if (!text || seen.has(id)) continue;
-      seen.add(id);
-      busy = busy.then(() => rememberLiveTurn(pet, text, launchToken));
-    }
-  };
   let wasConnected = false;
   const tick = () => {
-    check();
-    // A dropped or ended voice session saves the log before it is lost.
+    if (launchToken !== chatLaunchToken) return;
     let connected = false;
     try {
       connected = Boolean(window.ChatWidget?.getRealtimeState?.()?.connected);
@@ -542,49 +514,10 @@ function startLiveMemory(pet, launchToken) {
     wasConnected = connected;
   };
   const timer = setInterval(tick, 1200);
-  let unsubscribe = null;
-  try {
-    const sub = window.ChatWidget?.subscribe;
-    if (typeof sub === "function") {
-      unsubscribe = sub.call(window.ChatWidget, () => {
-        check();
-      });
-    }
-  } catch (err) {
-    console.warn("[PaintMomo] chat subscribe failed:", err);
-  }
   stopLiveMemory = () => {
     clearInterval(timer);
-    try {
-      unsubscribe?.();
-    } catch {}
     stopLiveMemory = null;
   };
-}
-
-async function rememberLiveTurn(pet, text, launchToken) {
-  const notes = activeMemories.filter((m) => /^note_\d+$/.test(m.key)).length;
-  const found = extractMemories(text, { noteIndex: notes + 1 });
-  let changed = false;
-  for (const { key, value } of found) {
-    if (launchToken !== chatLaunchToken) return;
-    const current = activeMemories.find((m) => m.key === key);
-    if (current && current.value.toLowerCase() === value.toLowerCase()) continue;
-    try {
-      const row = await saveMemory({ key, value, petName: pet.name });
-      activeMemories = [row, ...activeMemories.filter((m) => m.key !== key)];
-      noteMemorySaved(row);
-      changed = true;
-      notify("{name} will remember: {what} = {value}", {
-        name: pet.name,
-        what: keyLabel(key, getLanguage()),
-        value,
-      });
-    } catch (err) {
-      console.warn("[PaintMomo] live memory save failed:", err);
-    }
-  }
-  if (changed) pushGreetingToWidget();
 }
 
 async function loadPetHub() {
@@ -972,7 +905,7 @@ export async function launchPetChat(pet) {
   });
   activeMemories = await listMemories().catch(() => []);
   if (launchToken !== chatLaunchToken) return;
-  startLiveMemory(pet, launchToken);
+  startVoiceSessionWatch(launchToken);
   hookWidgetUserMessages();
   const backgroundColor = normalizeBackground(pet.backgroundColor);
   const backgroundId = resolveBackgroundId(pet.backgroundId);
