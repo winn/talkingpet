@@ -9,7 +9,7 @@ const stubChat = (page) =>
       contentType: "application/javascript",
       body: `window.played=[];window.emotions=[];
 window.WebAvatar={isARMode:false,avatarGroup:{rotation:{y:0},position:{x:0,y:0,z:-0.8},scale:{x:1,y:1,z:1,set(a,b,c){this.x=a;this.y=b;this.z=c;}}},setEmotion(n,w){window.emotions.push(n);}};
-window.ChatWidget={destroy(){document.querySelector('#chatWidgetContainer').replaceChildren()},playAnimation(n){window.played.push(n)},updateConfig(config){window.ChatWidgetConfig={...window.ChatWidgetConfig,...config};document.querySelector(window.ChatWidgetConfig.container).innerHTML='<canvas aria-label="Test avatar" width="600" height="600" style="width:100%;height:100%"></canvas><div id="bcw-rt-controls" style="position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:center;gap:12px"><div id="bcw-rt-volume-wrap"><button class="bcw-rt-btn" aria-label="Volume">V</button></div><div id="bcw-rt-ar-toggle-wrap"><button id="bcw-rt-ar-toggle-btn" class="bcw-rt-btn" aria-label="Enter AR">AR</button></div><div id="bcw-rt-call-btn-wrap"><button id="bcw-rt-call-btn" class="bcw-rt-btn" aria-label="Connect to AI">C</button></div></div>'}};
+window.stubHistory=[];window.ChatWidget={getState(){return {chatHistory:window.stubHistory}},destroy(){document.querySelector('#chatWidgetContainer').replaceChildren()},playAnimation(n){window.played.push(n)},updateConfig(config){window.ChatWidgetConfig={...window.ChatWidgetConfig,...config};document.querySelector(window.ChatWidgetConfig.container).innerHTML='<canvas aria-label="Test avatar" width="600" height="600" style="width:100%;height:100%"></canvas><div id="bcw-rt-controls" style="position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:center;gap:12px"><div id="bcw-rt-volume-wrap"><button class="bcw-rt-btn" aria-label="Volume">V</button></div><div id="bcw-rt-ar-toggle-wrap"><button id="bcw-rt-ar-toggle-btn" class="bcw-rt-btn" aria-label="Enter AR">AR</button></div><div id="bcw-rt-call-btn-wrap"><button id="bcw-rt-call-btn" class="bcw-rt-btn" aria-label="Connect to AI">C</button></div></div>'}};
 window.ChatWidget.updateConfig(window.ChatWidgetConfig);`,
     }),
   );
@@ -195,27 +195,47 @@ test("leaving talk gets the chat remembered; memory can be viewed, added and for
     /Things you remember about your friend from earlier chats:\n- name: John/,
   );
 
+  const rows = page.locator("#memoryRows tr");
+  // While talking, a clear statement is remembered at once.
+  await page.evaluate(() => {
+    window.stubHistory.push({ sender: "user", text: "ผมชื่อวินน์ครับ", timestamp: Date.now() });
+  });
+  await expect(page.locator("#toast")).toHaveText("Momo will remember: Name = วินน์");
+  await expect
+    .poll(() => page.evaluate(() => window.ChatWidgetConfig.greetingInstruction))
+    .toMatch(/- name: วินน์/);
+  expect(upserts.at(-1).body).toMatchObject({ key: "name", value: "วินน์", pet_name: "Momo" });
+  await page.evaluate(() => {
+    window.stubHistory.push({
+      sender: "user",
+      text: "ช่วยจำหน่อยว่าวันเกิดของชั้นวันที่ 19 มีนาคม",
+      timestamp: Date.now(),
+    });
+  });
+  await expect(page.locator("#toast")).toHaveText("Momo will remember: Birthday = 19 มีนาคม");
+
   // Settings → Memory opens the table over the pet.
   await page.locator("#talkSettingsBtn").click();
   await page.locator("#talkMemoryBtn").click();
   const modal = page.locator("#memoryModal");
   await expect(modal).toBeVisible();
   await expect(page.locator("#memoryTitle")).toHaveText("What Momo remembers");
-  const rows = page.locator("#memoryRows tr");
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText("Name");
-  await expect(rows.first()).toContainText("John");
-  await expect(rows.first()).toContainText("from Momo");
+  const rowsInSheet = page.locator("#memoryRows tr");
+  await expect(rowsInSheet).toHaveCount(3);
+  await expect(page.locator("#memoryRows")).toContainText("Birthday");
+  await expect(page.locator("#memoryRows")).toContainText("19 มีนาคม");
+  await expect(page.locator("#memoryRows")).toContainText("วินน์");
+  await expect(page.locator("#memoryRows")).toContainText("from Momo");
 
   // Adding by hand stores a snake_case key and updates the current chat's instructions.
   await page.locator("#memoryKey").fill("Favorite subject");
   await page.locator("#memoryValue").fill("  Science  ");
   await page.locator("#memoryAddBtn").click();
-  await expect(rows).toHaveCount(2);
+  await expect(rows).toHaveCount(4);
   await expect(rows.first()).toContainText("Favorite subject");
   await expect(rows.first()).toContainText("Science");
-  expect(upserts[0].body).toMatchObject({ key: "favorite_subject", value: "Science" });
-  expect(upserts[0].prefer).toContain("resolution=merge-duplicates");
+  expect(upserts.at(-1).body).toMatchObject({ key: "favorite_subject", value: "Science" });
+  expect(upserts.at(-1).prefer).toContain("resolution=merge-duplicates");
   await expect
     .poll(() => page.evaluate(() => window.ChatWidgetConfig.greetingInstruction))
     .toMatch(/- favorite subject: Science\n- name: John/);
@@ -223,8 +243,7 @@ test("leaving talk gets the chat remembered; memory can be viewed, added and for
 
   // Forgetting one, then everything.
   await rows.first().getByRole("button", { name: "Forget this memory" }).click();
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText("John");
+  await expect(rows).toHaveCount(3);
   await page.locator("#forgetAllBtn").click();
   await expect(rows).toHaveCount(0);
   await expect(page.locator("#memoryEmpty")).toBeVisible();

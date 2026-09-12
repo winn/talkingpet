@@ -34,6 +34,13 @@ export function getMemories() {
   return [...memories];
 }
 
+/** A row saved elsewhere (live capture during a talk) joins the table. */
+export function noteMemorySaved(row) {
+  if (!row?.id) return;
+  memories = [row, ...memories.filter((memory) => memory.key !== row.key)];
+  renderMemoryTable();
+}
+
 export function renderMemoryTable() {
   const body = $("#memoryRows");
   const empty = $("#memoryEmpty");

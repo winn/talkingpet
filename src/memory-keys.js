@@ -25,6 +25,7 @@ const LABELS = {
   nickname: ["Nickname", "ชื่อเล่น"],
   birthday: ["Birthday", "วันเกิด"],
   age: ["Age", "อายุ"],
+  phone: ["Phone", "เบอร์โทร"],
   favorite_food: ["Favorite food", "อาหารโปรด"],
   favorite_color: ["Favorite color", "สีโปรด"],
   favorite_subject: ["Favorite subject", "วิชาโปรด"],

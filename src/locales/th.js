@@ -311,6 +311,8 @@ export const TH = {
   "Forget everything": "ลืมทั้งหมด",
   "Could not forget that. Please try again.": "ลืมไม่สำเร็จ ลองใหม่อีกครั้ง",
   "{name} will remember what you shared today.": "{name} จะจำเรื่องที่เราเล่าวันนี้ไว้นะ",
+  "{name} will remember: {what} = {value}": "{name} จำไว้แล้ว: {what} = {value}",
+  Phone: "เบอร์โทร",
   "Buying points is not set up yet. Ask an admin for points.":
     "ยังซื้อแต้มไม่ได้ในตอนนี้ ขอแต้มจากผู้ดูแลได้เลย",
   Admin: "ผู้ดูแล",

@@ -36,6 +36,8 @@ The end-to-end suite signs in through the real sign-in screen, so set `E2E_EMAIL
 
 ## Memories
 
+While talking, each turn from the child runs through on-device rules in `src/memory-rules.js` (name, nickname, phone number, birthday, age, favourites in Thai and English, and anything after "please remember…" / "ช่วยจำหน่อยว่า…"). A match is saved immediately, shown in a toast, and pushed into the running chat's instructions. Free-text requests the rules cannot shape into a key become numbered notes.
+
 When a talk session ends (leaving with **My pets**, or closing the tab), the app reads the turns the hosted widget stored for that session and posts them to `/api/memories/summarize`. The server asks Gemini for a few lasting facts the child shared about themselves (name, birthday, favourite things, anything they asked the pet to remember), skips anything already known, and stores the rest in `public.user_memories`, scoped to the account. The next chat's instructions include these facts so the pet can bring them up naturally.
 
 Memories are key/value records (`birthday` → `19 March`), one per key per account, so a changed fact replaces the old one. **Settings** in Talk (the gear) and **Open memory** in the account sheet open the memory table, where the owner can add a fact by hand, **Forget** one, or **Forget everything**. Edits made during a talk reach the current chat's instructions immediately. Summarising needs a Gemini key: with `SUPABASE_SECRET_KEY` set on the server, the key saved in the admin AI keys tab is used; otherwise set `GEMINI_API_KEY` in the server environment. Without either, sessions are simply not summarised and talking works as before. Apply `supabase/migrations/20260911230000_user_memories.sql` to the project first.

@@ -278,3 +278,49 @@ test("chat instructions carry the memories in the chosen language", async () => 
     ),
   );
 });
+
+test("on-device rules catch names, numbers, birthdays, favourites and remember requests", async () => {
+  const { extractMemories, rememberRequest } =
+    await import("../src/memory-rules.js");
+  const pick = (text, opts) => extractMemories(text, opts);
+  assert.deepEqual(pick("ผมชื่อวินน์ครับ"), [{ key: "name", value: "วินน์" }]);
+  assert.deepEqual(pick("เบอร์โทร 0618201998"), [
+    { key: "phone", value: "0618201998" },
+  ]);
+  assert.deepEqual(pick("ช่วยจำหน่อยว่าวันเกิดของชั้นวันที่ 19 มีนาคม"), [
+    { key: "birthday", value: "19 มีนาคม" },
+  ]);
+  assert.deepEqual(pick("ฉันชื่อดาวนะ อายุ 8 ขวบ ชอบกินไอติมชาเขียว"), [
+    { key: "name", value: "ดาว" },
+    { key: "age", value: "8" },
+    { key: "favorite_food", value: "ไอติมชาเขียว" },
+  ]);
+  assert.deepEqual(pick("ชอบวิชาวิทยาศาสตร์มากเลย"), [
+    { key: "favorite_subject", value: "วิทยาศาสตร์" },
+  ]);
+  assert.deepEqual(pick("จำไว้นะว่าฉันมีหมาชื่อแม็กซ์", { noteIndex: 3 }), [
+    { key: "note_3", value: "ฉันมีหมาชื่อแม็กซ์" },
+  ]);
+  assert.deepEqual(pick("ชื่ออะไรเหรอ"), []);
+  assert.deepEqual(pick("I'm hungry"), []);
+  assert.deepEqual(pick("my name is John and my birthday is March 19"), [
+    { key: "name", value: "John" },
+    { key: "birthday", value: "March 19" },
+  ]);
+  assert.deepEqual(pick("please remember my favorite subject is science"), [
+    { key: "favorite_subject", value: "science" },
+  ]);
+  assert.deepEqual(pick("remember that I have a dog named Max"), [
+    { key: "note_1", value: "I have a dog named Max" },
+  ]);
+  assert.deepEqual(pick("my phone number is 061-820-1998"), [
+    { key: "phone", value: "0618201998" },
+  ]);
+  assert.deepEqual(pick("you can call me Win"), [
+    { key: "nickname", value: "Win" },
+  ]);
+  assert.deepEqual(pick("I am 9 years old"), [{ key: "age", value: "9" }]);
+  assert.equal(rememberRequest("ช่วยจำหน่อยว่าฉันกลัวผี"), "ฉันกลัวผี");
+  assert.equal(rememberRequest("I remembered my homework"), "");
+  assert.deepEqual(pick(""), []);
+});

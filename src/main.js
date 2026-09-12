@@ -47,13 +47,17 @@ import { mountTalkSettings } from "./talk-settings.js";
 import {
   getMemories,
   initMemoryPanel,
+  noteMemorySaved,
   openMemorySheet,
 } from "./memory-panel.js";
+import { extractMemories } from "./memory-rules.js";
+import { keyLabel } from "./memory-keys.js";
 import {
   listMemories,
   readWidgetHistory,
   readWidgetStoreHistory,
   rememberSession,
+  saveMemory,
   transcriptSince,
 } from "./memories.js";
 import { ensureSfxLibrary, notePettingMotion, attachHoverRub, unlockPetSounds } from "./pet-sounds.js";
@@ -113,6 +117,7 @@ let threeCamera = null;
 // What the pet knows about its friend for this talk session, and when it began.
 let activeMemories = [];
 let talkStartedAt = 0;
+let stopLiveMemory = null;
 let threeRenderer = null;
 let threeControls = null;
 let isPainterRunning = false;
@@ -338,6 +343,7 @@ function initHubEvents() {
   exitTalkBtn.addEventListener("click", async () => {
     const leavingPet = activeChatPet;
     const transcript = collectTalkTranscript();
+    stopLiveMemory?.();
     chatLaunchToken++;
     activeChatPet = null;
     chatThemeObserver?.disconnect();
@@ -366,6 +372,80 @@ function collectTalkTranscript() {
     [...readWidgetStoreHistory(window), ...readWidgetHistory()],
     talkStartedAt,
   );
+}
+
+/** Push the current memories into the running chat's instructions. */
+async function pushGreetingToWidget() {
+  if (!activeChatPet || !window.ChatWidgetConfig) return;
+  const greetingInstruction = buildChatGreeting(
+    activeChatPet,
+    getLanguage(),
+    activeMemories,
+  );
+  window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
+  if (typeof window.ChatWidget?.updateConfig === "function") {
+    try {
+      await window.ChatWidget.updateConfig({
+        ...window.ChatWidgetConfig,
+        greetingInstruction,
+      });
+    } catch (err) {
+      console.warn("[PaintMomo] updateConfig memory update error:", err);
+    }
+  }
+}
+
+// While talking, every new turn from the friend is checked against the
+// on-device rules (name, phone, birthday, favourites, "please remember…") and
+// anything found is saved at once, so nothing waits for the end of the chat.
+function startLiveMemory(pet, launchToken) {
+  stopLiveMemory?.();
+  const seen = new Set();
+  let busy = Promise.resolve();
+  const check = () => {
+    if (launchToken !== chatLaunchToken) return;
+    for (const item of readWidgetStoreHistory(window)) {
+      if (String(item?.sender ?? item?.role ?? "").toLowerCase() !== "user")
+        continue;
+      const stamp = Number(item.timestamp ?? 0);
+      if (stamp && stamp < talkStartedAt) continue;
+      const text = String(item.text ?? item.uiText ?? "").trim();
+      const id = `${stamp}|${text}`;
+      if (!text || seen.has(id)) continue;
+      seen.add(id);
+      busy = busy.then(() => rememberLiveTurn(pet, text, launchToken));
+    }
+  };
+  const timer = setInterval(check, 1200);
+  stopLiveMemory = () => {
+    clearInterval(timer);
+    stopLiveMemory = null;
+  };
+}
+
+async function rememberLiveTurn(pet, text, launchToken) {
+  const notes = activeMemories.filter((m) => /^note_\d+$/.test(m.key)).length;
+  const found = extractMemories(text, { noteIndex: notes + 1 });
+  let changed = false;
+  for (const { key, value } of found) {
+    if (launchToken !== chatLaunchToken) return;
+    const current = activeMemories.find((m) => m.key === key);
+    if (current && current.value.toLowerCase() === value.toLowerCase()) continue;
+    try {
+      const row = await saveMemory({ key, value, petName: pet.name });
+      activeMemories = [row, ...activeMemories.filter((m) => m.key !== key)];
+      noteMemorySaved(row);
+      changed = true;
+      notify("{name} will remember: {what} = {value}", {
+        name: pet.name,
+        what: keyLabel(key, getLanguage()),
+        value,
+      });
+    } catch (err) {
+      console.warn("[PaintMomo] live memory save failed:", err);
+    }
+  }
+  if (changed) pushGreetingToWidget();
 }
 
 // Runs after the hub is back so leaving never waits on the summary.
@@ -737,6 +817,7 @@ export async function launchPetChat(pet) {
   talkStartedAt = Date.now();
   activeMemories = await listMemories().catch(() => []);
   if (launchToken !== chatLaunchToken) return;
+  startLiveMemory(pet, launchToken);
   const backgroundColor = normalizeBackground(pet.backgroundColor);
   const backgroundId = resolveBackgroundId(pet.backgroundId);
   talkScreen.style.setProperty("--talk-background", backgroundColor);
@@ -2578,25 +2659,9 @@ document.addEventListener("click", (event) => {
   if (event.target.closest("#talkMemoryBtn"))
     openMemorySheet({ petName: activeChatPet?.name || "" });
 });
-window.addEventListener("memorieschange", async () => {
+window.addEventListener("memorieschange", () => {
   activeMemories = getMemories();
-  if (!activeChatPet || !window.ChatWidgetConfig) return;
-  const greetingInstruction = buildChatGreeting(
-    activeChatPet,
-    getLanguage(),
-    activeMemories,
-  );
-  window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
-  if (typeof window.ChatWidget?.updateConfig === "function") {
-    try {
-      await window.ChatWidget.updateConfig({
-        ...window.ChatWidgetConfig,
-        greetingInstruction,
-      });
-    } catch (err) {
-      console.warn("[PaintMomo] updateConfig memory update error:", err);
-    }
-  }
+  pushGreetingToWidget();
 });
 // Closing the tab mid-talk still gets the session remembered (keepalive fetch).
 window.addEventListener("pagehide", () => {
