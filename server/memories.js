@@ -82,10 +82,10 @@ export function memoryInstruction({ petName, language, existing, transcript }) {
     .join("\n");
   return [
     `You help ${name}, a virtual pet, remember its friend (a child aged 8 or older) between chats.`,
-    "Read the transcript and extract lasting personal facts the friend shared about themselves, as key/value pairs.",
-    "Keys are short English snake_case labels, reusing these when they fit: name, nickname, birthday, age, favorite_food, favorite_color, favorite_subject, favorite_animal, favorite_game, favorite_song, favorite_place, favorite_sport, hobby, pet, family, school, friend, dream, dislike. Invent a similar key only for something else the friend clearly asked the pet to remember.",
-    `Values are short (under 100 characters) in ${thai ? "Thai" : "English"}, for example ${thai ? 'name: "จอห์น", birthday: "19 มีนาคม", favorite_food: "ไอศกรีมชาเขียว", favorite_sport: "ฟุตบอล"' : 'name: "John", birthday: "19 March", favorite_food: "green tea ice cream", favorite_sport: "football"'}.`,
-    "Rules: only facts the friend stated about themselves; ignore small talk, questions, and the pet's own words. Never invent details. Repeat a known key only when its value changed. Sports the friend likes or plays (football, swimming, basketball, etc.) use favorite_sport — not hobby or favorite_game.",
+    "You decide what is worth keeping. Read the transcript and extract lasting personal facts the friend shared about themselves — anything that would help the pet know them next time (likes, dislikes, people, places, routines, feelings they named clearly, plans, and so on).",
+    "Invent a short English snake_case key for each fact yourself. Reuse a Known fact's key when it is the same topic (so the value updates). Do not limit yourself to a fixed list — create a new key whenever the topic is new. Examples of style only (not a closed set): name, favorite_food, favorite_sport, best_friend, scared_of_dogs, plays_piano.",
+    `Values are short (under 100 characters) in ${thai ? "Thai" : "English"}, written the way the child said them when possible.`,
+    "Rules: only facts the friend stated about themselves; ignore small talk, one-off jokes, questions to the pet, and the pet's own words. Never invent details. Skip things too vague to reuse later. Prefer one clear key per topic; do not store the same fact under two keys.",
     `Return at most ${MEMORY_LIMITS.maxPerSession} pairs. Return an empty list when there is nothing new worth remembering.`,
     "",
     "Known facts:",

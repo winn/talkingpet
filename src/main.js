@@ -506,8 +506,9 @@ async function sendTypedMessage(text) {
 }
 
 /**
- * End-of-session memory: one LLM pass, then on-device rules if needed.
- * Hangup keeps the log so leave/retry can still save; leave clears after.
+ * End-of-session memory: LLM decides what to keep (and invents keys).
+ * On-device rules run only if the summarise API fails. Hangup keeps the log
+ * so leave/retry can still save; leave clears after.
  */
 async function extractChatToMemory({ silent = false, clear = true } = {}) {
   const pet = activeChatPet;
@@ -520,13 +521,16 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
   const transcript = collectTalkTranscript();
   const hasUser = transcript.some((turn) => turn.role === "user");
   let added = [];
+  let llmOk = false;
   if (hasUser) {
-    added = await rememberSession({
+    const result = await rememberSession({
       pet,
       language: getLanguage(),
       transcript,
     });
-    if (!added.length) {
+    llmOk = !result.failed;
+    added = result.added;
+    if (result.failed) {
       const local = await rememberFromRules({ pet, transcript });
       added = local.filter((row) => {
         const prev = activeMemories.find((m) => m.key === row.key);
@@ -535,8 +539,10 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
           String(prev.value).toLowerCase() !== String(row.value).toLowerCase()
         );
       });
-      // Rules matched but values were already known — treat as done.
       if (!added.length && local.length) sessionRememberDone = true;
+    } else if (!added.length) {
+      // Model chose nothing new — do not override with local rules.
+      sessionRememberDone = true;
     }
   }
   if (launchToken !== chatLaunchToken) return 0;
@@ -545,8 +551,10 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
     noteMemorySaved(row);
   }
   if (added.length) sessionRememberDone = true;
-  // Never wipe a user transcript after a failed save — leave can retry.
-  const shouldClear = clear && (added.length > 0 || !hasUser);
+  // Clear after a successful LLM pass (even if empty) or a successful save.
+  // Keep the log when summarise failed so leave can retry.
+  const shouldClear =
+    clear && (added.length > 0 || !hasUser || llmOk || sessionRememberDone);
   if (shouldClear) {
     clearTalkChatLog();
     sessionTranscriptBackup = [];
@@ -557,11 +565,11 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
     });
   else if (!silent)
     notify(
-      hasUser
+      hasUser && !llmOk && !sessionRememberDone
         ? "Could not save new memories yet. Try again from My pets."
         : "Chat cleared. Anything clear was already remembered.",
     );
-  else if (hasUser && clear)
+  else if (hasUser && clear && !llmOk && !sessionRememberDone)
     notify("Could not save new memories yet. Try again from My pets.");
   return added.length;
 }
@@ -2877,8 +2885,9 @@ window.addEventListener("pagehide", () => {
     pet,
     language: getLanguage(),
     transcript,
+  }).then((result) => {
+    if (result?.failed) void rememberFromRules({ pet, transcript });
   });
-  void rememberFromRules({ pet, transcript });
   try {
     window.ChatWidget?.clearHistory?.();
   } catch {}

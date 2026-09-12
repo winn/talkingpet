@@ -136,6 +136,12 @@ test("summarizeMemories asks Gemini with known facts and returns the merged resu
     prompt,
     /Friend: I'm John and I love green tea ice cream\nMomo: Yum!/,
   );
+  assert.match(prompt, /Invent a short English snake_case key/);
+  assert.match(prompt, /You decide what is worth keeping/);
+  assert.doesNotMatch(
+    prompt,
+    /Invent a similar key only for something else the friend clearly asked/,
+  );
   assert.equal(
     calls[0][1].generationConfig.responseMimeType,
     "application/json",

@@ -150,8 +150,10 @@ export function transcriptSince(items, since = 0) {
 }
 
 /**
- * Send the session to be remembered. Resolves the memories added (possibly
- * none). Never throws: a failed summary should not get in the way of leaving.
+ * Send the session to be remembered. Resolves
+ * `{ added, failed }` — `failed` means the API/LLM path did not run successfully
+ * (so a local fallback may help). An empty `added` with `failed: false` means
+ * the model chose to store nothing new.
  */
 export async function rememberSession({
   pet,
@@ -159,10 +161,11 @@ export async function rememberSession({
   transcript,
   fetchImpl = fetch,
 }) {
-  if (!pet || !transcript?.some((t) => t.role === "user")) return [];
+  if (!pet || !transcript?.some((t) => t.role === "user"))
+    return { added: [], failed: false };
   try {
     const session = await getSession();
-    if (!session) return [];
+    if (!session) return { added: [], failed: true };
     const res = await fetchImpl("/api/memories/summarize", {
       method: "POST",
       keepalive: true,
@@ -180,18 +183,21 @@ export async function rememberSession({
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       console.warn("[PaintMomo] remember failed:", data.error || res.status);
-      return [];
+      return { added: [], failed: true };
     }
-    return Array.isArray(data.added) ? data.added : [];
+    return {
+      added: Array.isArray(data.added) ? data.added : [],
+      failed: false,
+    };
   } catch (err) {
     console.warn("[PaintMomo] remember failed:", err);
-    return [];
+    return { added: [], failed: true };
   }
 }
 
 /**
- * On-device fallback when the LLM summary finds nothing or the API fails.
- * Catches clear kid phrases like "ชอบพิซซ่าฮาวายเอี้ยน" without a round-trip.
+ * On-device fallback only when the LLM summarise API fails (network / key).
+ * Does not override an intentional empty LLM result.
  */
 export async function rememberFromRules({ pet, transcript }) {
   if (!pet || !transcript?.some((t) => t.role === "user")) return [];
