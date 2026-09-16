@@ -1,5 +1,10 @@
 import { openMemorySheet } from "./memory-panel.js";
 import {
+  createMcpServer,
+  deleteMcpServer,
+  listMcpServers,
+} from "./botnoi-client.js";
+import {
   AI_PROVIDERS,
   TALK_COST,
   adminCreateCoupons,
@@ -164,6 +169,7 @@ export function openAccountSheet(notice = null) {
   show(modal);
   modal.classList.add("grid");
   loadPacks();
+  loadMcpServers();
 }
 
 export function closeAccountSheet() {
@@ -178,6 +184,7 @@ export async function initAccount(options = {}) {
   bindAccountSheet();
   bindAdminScreen();
   bindCouponForm();
+  bindMcpForm();
   window.addEventListener("popstate", () => {
     if (wantsAdminRoute()) openAdmin();
     else if (!$("#adminScreen").classList.contains("hidden")) {
@@ -494,9 +501,11 @@ function selectAdminTab(tab) {
   $("#adminPacksPanel").hidden = tab !== "packs";
   $("#adminCouponsPanel").hidden = tab !== "coupons";
   $("#adminKeysPanel").hidden = tab !== "keys";
+  $("#adminVoicePanel").hidden = tab !== "voice";
   $("#adminMusicPanel").hidden = tab !== "music";
   $("#adminSfxPanel").hidden = tab !== "sfx";
   if (tab === "keys") loadKeyCards();
+  if (tab === "voice") loadAdminVoice();
   if (tab === "music" || tab === "sfx") loadAudio(tab);
 }
 
@@ -628,6 +637,7 @@ function bindAdminScreen() {
   });
   bindAdminCoupons();
   bindAdminKeys();
+  bindAdminVoice();
   bindAdminAudio("music");
   bindAdminAudio("sfx");
 
@@ -786,6 +796,141 @@ function bindCouponForm() {
       localizeText(button.querySelector("span"), "Redeem");
     }
   });
+}
+
+function setMcpMessage(message, success = false) {
+  const box = $("#mcpMessage");
+  if (!box) return;
+  box.hidden = !message;
+  box.textContent = message ?? "";
+  box.classList.toggle("is-success", success);
+}
+
+async function loadMcpServers() {
+  const list = $("#mcpList");
+  if (!list) return;
+  try {
+    const servers = await listMcpServers();
+    if (!servers.length) {
+      list.innerHTML = `<p class="packs-hint">${escapeHtml(t("No MCP servers yet."))}</p>`;
+      return;
+    }
+    list.innerHTML = servers
+      .map(
+        (server) => `
+      <div class="mcp-row" data-id="${escapeHtml(server.id)}">
+        <div>
+          <strong>${escapeHtml(server.name)}</strong>
+          <p class="admin-row-meta">${escapeHtml(server.url)}${
+            server.botnoi_tool_name
+              ? ` · ${escapeHtml(server.botnoi_tool_name)}`
+              : ""
+          }</p>
+        </div>
+        <button type="button" class="text-button mcp-remove" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Remove"))}</button>
+      </div>`,
+      )
+      .join("");
+  } catch (err) {
+    list.innerHTML = `<p class="packs-hint">${escapeHtml(err instanceof Error ? err.message : t("Could not load MCP servers."))}</p>`;
+  }
+}
+
+function bindMcpForm() {
+  const form = $("#mcpForm");
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = $("#mcpName").value.trim();
+    const url = $("#mcpUrl").value.trim();
+    const authValue = $("#mcpAuthValue").value.trim();
+    if (!name || !url) {
+      setMcpMessage(t("Name and URL are required."));
+      return;
+    }
+    const button = $("#mcpAddBtn");
+    button.disabled = true;
+    try {
+      await createMcpServer({
+        name,
+        url,
+        authValue: authValue || undefined,
+        authHeader: authValue ? "Authorization" : undefined,
+      });
+      $("#mcpName").value = "";
+      $("#mcpUrl").value = "";
+      $("#mcpAuthValue").value = "";
+      setMcpMessage(t("MCP server connected."), true);
+      await loadMcpServers();
+    } catch (err) {
+      setMcpMessage(err instanceof Error ? err.message : t("Could not add MCP server."));
+    } finally {
+      button.disabled = false;
+    }
+  });
+  $("#mcpList")?.addEventListener("click", async (event) => {
+    const button = event.target.closest(".mcp-remove");
+    if (!button) return;
+    const id = button.dataset.id;
+    if (!id) return;
+    button.disabled = true;
+    try {
+      await deleteMcpServer(id);
+      setMcpMessage(t("MCP server removed."), true);
+      await loadMcpServers();
+    } catch (err) {
+      setMcpMessage(err instanceof Error ? err.message : t("Could not remove MCP server."));
+      button.disabled = false;
+    }
+  });
+}
+
+async function loadAdminVoice() {
+  const tools = $("#adminToolList");
+  const agents = $("#adminAgentList");
+  if (!tools || !agents) return;
+  tools.textContent = "Loading…";
+  agents.textContent = "Loading…";
+  try {
+    const session = await getSession();
+    if (!session) throw new Error("Sign in first.");
+    const headers = { Authorization: `Bearer ${session.access_token}` };
+    const [toolRes, agentRes] = await Promise.all([
+      fetch("/api/botnoi/tools", { headers }),
+      fetch("/api/botnoi/agents", { headers }),
+    ]);
+    const toolData = await toolRes.json().catch(() => ({}));
+    const agentData = await agentRes.json().catch(() => ({}));
+    if (!toolRes.ok) throw new Error(toolData.error || "Could not load tools.");
+    if (!agentRes.ok) throw new Error(agentData.error || "Could not load agents.");
+    const toolRows = Array.isArray(toolData.tools) ? toolData.tools : [];
+    const agentRows = Array.isArray(agentData.agents) ? agentData.agents : [];
+    tools.innerHTML = toolRows.length
+      ? toolRows
+          .map(
+            (tool) =>
+              `<div class="admin-row"><strong>${escapeHtml(tool.name || tool.id || "tool")}</strong><p class="admin-row-meta">${escapeHtml(tool.tool_type || "")} · ${escapeHtml(tool.status || "")} · ${escapeHtml(tool.id || tool.tool_id || "")}</p></div>`,
+          )
+          .join("")
+      : `<p class="admin-lead">No tools yet.</p>`;
+    agents.innerHTML = agentRows.length
+      ? agentRows
+          .map(
+            (agent) =>
+              `<div class="admin-row"><strong>${escapeHtml(agent.bot_name || agent.name || agent.agent_id || "agent")}</strong><p class="admin-row-meta">${escapeHtml(agent.agent_id || agent.id || "")}</p></div>`,
+          )
+          .join("")
+      : `<p class="admin-lead">No agents yet.</p>`;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not load Voice API.";
+    tools.innerHTML = `<p class="admin-lead">${escapeHtml(message)}</p>`;
+    agents.innerHTML = "";
+    setAdminMessage("error", message);
+  }
+}
+
+function bindAdminVoice() {
+  $("#adminRefreshVoiceBtn")?.addEventListener("click", () => loadAdminVoice());
 }
 
 async function loadAdminCoupons() {

@@ -415,6 +415,9 @@
           <button type="button" role="tab" data-admin-tab="keys" aria-selected="false">
             AI keys
           </button>
+          <button type="button" role="tab" data-admin-tab="voice" aria-selected="false">
+            Voice tools
+          </button>
           <button type="button" role="tab" data-admin-tab="music" aria-selected="false">
             Music
           </button>
@@ -515,6 +518,24 @@
             provider before saving.
           </p>
           <div id="adminKeyCards" class="admin-list"></div>
+        </section>
+        <section id="adminVoicePanel" class="admin-panel" hidden>
+          <h2>Voice agents &amp; tools</h2>
+          <p class="admin-lead">
+            Proxies the Botnoi Voice API
+            (<code>POST /platform-config/tools</code> and
+            <code>PUT /agent/create_update_agent</code>. Needs
+            <code>BOTNOI_VOICE_TOKEN</code> on the server.
+          </p>
+          <div class="admin-toolbar">
+            <button id="adminRefreshVoiceBtn" type="button" class="secondary">
+              Refresh
+            </button>
+          </div>
+          <h3>Tools</h3>
+          <div id="adminToolList" class="admin-list"></div>
+          <h3>Agents</h3>
+          <div id="adminAgentList" class="admin-list"></div>
         </section>
         <section id="adminMusicPanel" class="admin-panel" hidden>
           <h2>Background music</h2>
@@ -1393,6 +1414,48 @@
             <span aria-hidden="true">🧠</span>
             <span data-i18n="Open memory">Open memory</span>
           </button>
+        </section>
+        <section class="mcp-section">
+          <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
+          <p class="memory-hint">
+            <span
+              data-i18n="Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created."
+              >Connect MCP servers so your pets can use their tools while
+              talking. Each connection is registered as a Botnoi tool and
+              attached when a pet agent is created.</span
+            >
+          </p>
+          <form id="mcpForm" class="coupon-form mcp-form">
+            <input
+              id="mcpName"
+              type="text"
+              maxlength="60"
+              required
+              placeholder="Name"
+              aria-label="MCP name"
+              data-i18n-placeholder="Name"
+            />
+            <input
+              id="mcpUrl"
+              type="url"
+              required
+              placeholder="https://…"
+              aria-label="MCP server URL"
+            />
+            <input
+              id="mcpAuthValue"
+              type="password"
+              autocomplete="off"
+              placeholder="Optional API key"
+              aria-label="Optional API key"
+              data-i18n-placeholder="Optional API key"
+            />
+            <button id="mcpAddBtn" type="submit" class="secondary">
+              <span data-i18n="Add MCP">Add MCP</span>
+            </button>
+          </form>
+          <p id="mcpMessage" class="coupon-message" role="status" hidden></p>
+          <div id="mcpList" class="mcp-list"></div>
         </section>
         <div class="account-actions">
           <button id="openAdminBtn" type="button" class="secondary" hidden>

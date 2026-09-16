@@ -3967,6 +3967,36 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   font-size: 16px;
   margin-bottom: 10px;
 }
+.mcp-section {
+  margin-top: 22px;
+}
+.mcp-section h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.mcp-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.mcp-form input {
+  min-height: 44px;
+  border: 1.5px solid #e3cdb5;
+  background: #fffefb;
+  border-radius: 12px;
+  padding: 0 12px;
+}
+.mcp-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+.mcp-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
 .coupon-form {
   display: flex;
   gap: 8px;

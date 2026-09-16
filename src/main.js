@@ -83,6 +83,7 @@ import {
   applyBackdrop,
   applyTalkSceneBackdrop,
 } from "./backgrounds.js";
+import { ensurePetVoiceAgent } from "./botnoi-client.js";
 
 // Prevent mobile browser page zoom while preserving canvas pinch gestures
 initPreventPageZoom();
@@ -1049,9 +1050,33 @@ export async function launchPetChat(pet) {
 
   const greeting = buildChatGreeting(pet, getLanguage(), activeMemories);
 
+  // Prefer a per-pet Botnoi agent (with this account's MCP tools) when the
+  // Voice API token is configured; otherwise keep the shared species widget.
+  let widgetId = config.widgetId;
+  try {
+    const ensured = await ensurePetVoiceAgent(pet, {
+      personality: greeting,
+      language: getLanguage(),
+    });
+    if (ensured?.agentId) {
+      widgetId = ensured.agentId;
+      if (pet.botnoiAgentId !== ensured.agentId) {
+        pet.botnoiAgentId = ensured.agentId;
+        activeChatPet = pet;
+        try {
+          await savePet({ ...pet, botnoiAgentId: ensured.agentId });
+        } catch (err) {
+          console.warn("[TalkingMomo] could not persist botnoiAgentId:", err);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[TalkingMomo] pet agent ensure skipped:", err);
+  }
+
   window.ChatWidgetConfig = {
     mode: "realtime-ar",
-    widgetId: config.widgetId,
+    widgetId,
     avatarUrl: vrmBlobUrl,
     greetingInstruction: greeting,
     container: "#chatWidgetContainer",
@@ -1066,7 +1091,7 @@ export async function launchPetChat(pet) {
   ) {
     try {
       await window.ChatWidget.updateConfig({
-        widgetId: config.widgetId,
+        widgetId,
         avatarUrl: vrmBlobUrl,
         greetingInstruction: greeting,
         backgroundColor,

@@ -88,11 +88,30 @@ Everyone signs in before using the studio (`src/auth.js`, `src/account.js`). Sig
 
 ### Admin: AI keys, music, and sounds
 
-The admin screen (`/admin`) has three more tabs, modeled on Story in the Air:
+The admin screen (`/admin`) has more tabs, modeled on Story in the Air:
 
 - **AI keys.** Save an ElevenLabs key (music and sound effects) and optionally a Gemini key (batch planning). Keys are verified with the provider, stored in `public.app_settings` (admins only), and never shown again; `ELEVENLABS_API_KEY` / `GEMINI_API_KEY` environment variables act as fallbacks.
+- **Voice tools.** Proxies the Botnoi Voice API (`POST /platform-config/tools`, `PUT /agent/create_update_agent`). Needs `BOTNOI_VOICE_TOKEN` (console bearer token) and optional `BOTNOI_VOICE_API_BASE` (default staging). Docs: https://voicebot-stg.botnoigroup.com/llms.txt
 - **Music.** Compose instrumental background tracks with ElevenLabs Music (`api/admin/music.js`). Pick a starter idea, write a prompt, choose a length, or make the whole starter set. With a Gemini key, "Plan with Gemini and compose" invents a batch and makes them one by one.
 - **Sounds.** Make short effects with ElevenLabs Sound Effects (`api/admin/sfx.js`): meows, purrs, paws crawling, room ambience, and more. Each clip ends with a `[tag]` such as `[meow]` that is unique in the library.
+
+### Botnoi agents & MCP tools
+
+Talking Momo can create a **per-pet Voice agent** and register **MCP servers as Botnoi tools** (`tool_type: "mcp"`).
+
+1. Set `BOTNOI_VOICE_TOKEN` (and optionally `BOTNOI_VOICE_API_BASE`) on the server.
+2. Apply `supabase/migrations/20260916000000_mcp_servers.sql`.
+3. In the account sheet, add an MCP server (name + URL + optional API key). This calls `POST /api/mcp/servers`, which registers the tool on Botnoi via `POST /platform-config/tools`.
+4. When you Talk to a pet, `PUT /api/botnoi/pet-agent` creates/updates the pet's agent with those tool names and returns an `agentId`. The chat widget uses that id when available; otherwise it falls back to the shared species `widgetId`.
+
+APIs (auth required):
+
+| Route | Purpose |
+| --- | --- |
+| `GET/POST/PUT/DELETE /api/mcp/servers` | User MCP connections (synced to Botnoi) |
+| `GET/POST/PUT/DELETE /api/botnoi/tools` | Admin proxy to platform tools |
+| `GET/PUT /api/botnoi/agents` | Admin list / create-or-update agent |
+| `PUT /api/botnoi/pet-agent` | Ensure pet agent + attach user's MCP tools |
 
 Files land in the public `bgm` and `sfx` storage buckets and rows in `bgm_tracks` / `sfx_clips`; any signed-in user can read active items (`listActiveAudio` in `src/auth.js`) for playback in the app. These functions act with the admin's own session under row level security, so they work without the Supabase secret key. Set `ELEVENLABS_API_BASE` to point the functions at a stub for tests.
 
@@ -102,9 +121,11 @@ The `api/` folder holds Vercel functions (Web `Request`/`Response` handlers) and
 
 | Variable | Used by | Purpose |
 | --- | --- | --- |
-| `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) | register, checkout, webhook | Instant sign-up without a confirmation email; crediting purchased points. Without it, sign-up falls back to Supabase's confirmation email. |
+| `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) | register, checkout, webhook, mcp | Instant sign-up without a confirmation email; crediting paid points; storing MCP secrets. Without it, sign-up falls back to Supabase's confirmation email. |
 | `STRIPE_SECRET_KEY` | checkout, webhook | Creates Checkout sessions and verifies webhooks. |
 | `STRIPE_WEBHOOK_SECRET` | webhook | Signing secret of the `checkout.session.completed` webhook endpoint (`https://<your-domain>/api/stripe/webhook`). |
+| `BOTNOI_VOICE_TOKEN` | botnoi/*, mcp | Botnoi Voice console bearer token for agents + tools. |
+| `BOTNOI_VOICE_API_BASE` | botnoi/*, mcp | Optional. Defaults to `https://api-voicebot-stg.botnoigroup.com`. |
 
 Set the same three variables on Vercel (`vercel env add NAME production`), then add the webhook endpoint in the Stripe dashboard. To test payments locally:
 
