@@ -42,6 +42,9 @@ function buildWrap(doc) {
       <button type="button" id="talkMemoryBtn" class="secondary talk-memory-button">
         <span aria-hidden="true">🧠</span> <span data-i18n="Memory">Memory</span>
       </button>
+      <button type="button" id="talkMcpBtn" class="secondary talk-memory-button">
+        <span aria-hidden="true">🔌</span> <span data-i18n="MCP tools">MCP tools</span>
+      </button>
     </div>
     <button type="button" id="${SETTINGS_BUTTON_ID}"
       class="bcw-rt-btn bcw-rt-btn-secondary talk-settings-button"

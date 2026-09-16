@@ -158,6 +158,12 @@ export function openAccountSheet(notice = null) {
       n: TALK_COST,
     });
     box.hidden = false;
+  } else if (notice === "mcp") {
+    localizeText(
+      box,
+      "Add an MCP server here. It will be attached the next time you talk to a pet.",
+    );
+    box.hidden = false;
   } else if (typeof notice === "string" && notice) {
     box.textContent = notice;
     box.hidden = false;
@@ -170,6 +176,12 @@ export function openAccountSheet(notice = null) {
   modal.classList.add("grid");
   loadPacks();
   loadMcpServers();
+  if (notice === "mcp") {
+    requestAnimationFrame(() => {
+      $("#mcpSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      $("#mcpName")?.focus({ preventScroll: true });
+    });
+  }
 }
 
 export function closeAccountSheet() {

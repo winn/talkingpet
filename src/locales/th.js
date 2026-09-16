@@ -296,6 +296,9 @@ export const TH = {
   Memory: "ความทรงจำ",
   "Open memory": "เปิดความทรงจำ",
   "MCP tools for your pets": "เครื่องมือ MCP สำหรับสัตว์เลี้ยง",
+  "MCP tools": "เครื่องมือ MCP",
+  "Add an MCP server here. It will be attached the next time you talk to a pet.":
+    "เพิ่มเซิร์ฟเวอร์ MCP ที่นี่ จะถูกผูกตอนคุยกับสัตว์เลี้ยงครั้งถัดไป",
   "Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created.":
     "เชื่อมต่อเซิร์ฟเวอร์ MCP เพื่อให้สัตว์เลี้ยงใช้เครื่องมือได้ตอนคุย แต่ละการเชื่อมต่อจะลงทะเบียนเป็นเครื่องมือ Botnoi และผูกตอนสร้าง agent ของสัตว์เลี้ยง",
   "Add MCP": "เพิ่ม MCP",

@@ -20,7 +20,7 @@ import {
 } from "./pet-configs.js";
 import { getAllPets, getPetById, savePet, deletePetById } from "./pet-db.js";
 import { getSession } from "./auth.js";
-import { initAccount, showLogin, spendForTalk } from "./account.js";
+import { initAccount, openAccountSheet, showLogin, spendForTalk } from "./account.js";
 import { createPetVrmUrl, revokeAllPetVrmUrls } from "./vrm-reconstruct.js";
 import { capture360Frames, mount360Rotator } from "./preview-360.js";
 
@@ -2898,6 +2898,7 @@ initChatLog({ onSend: sendTypedMessage, onExtract: extractChatToMemory });
 document.addEventListener("click", (event) => {
   if (event.target.closest("#talkMemoryBtn"))
     openMemorySheet({ petName: activeChatPet?.name || "" });
+  if (event.target.closest("#talkMcpBtn")) openAccountSheet("mcp");
   if (event.target.closest("#talkChatBtn")) {
     if (isChatLogOpen()) closeChatLog();
     else {

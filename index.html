@@ -1372,6 +1372,48 @@
           </p>
         </div>
         <p id="accountNotice" class="account-notice" role="status" hidden></p>
+        <section id="mcpSection" class="mcp-section">
+          <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
+          <p class="memory-hint">
+            <span
+              data-i18n="Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created."
+              >Connect MCP servers so your pets can use their tools while
+              talking. Each connection is registered as a Botnoi tool and
+              attached when a pet agent is created.</span
+            >
+          </p>
+          <form id="mcpForm" class="coupon-form mcp-form">
+            <input
+              id="mcpName"
+              type="text"
+              maxlength="60"
+              required
+              placeholder="Name"
+              aria-label="MCP name"
+              data-i18n-placeholder="Name"
+            />
+            <input
+              id="mcpUrl"
+              type="url"
+              required
+              placeholder="https://…"
+              aria-label="MCP server URL"
+            />
+            <input
+              id="mcpAuthValue"
+              type="password"
+              autocomplete="off"
+              placeholder="Optional API key"
+              aria-label="Optional API key"
+              data-i18n-placeholder="Optional API key"
+            />
+            <button id="mcpAddBtn" type="submit" class="secondary">
+              <span data-i18n="Add MCP">Add MCP</span>
+            </button>
+          </form>
+          <p id="mcpMessage" class="coupon-message" role="status" hidden></p>
+          <div id="mcpList" class="mcp-list"></div>
+        </section>
         <section class="packs-section">
           <h3><span data-i18n="Get more points">Get more points</span></h3>
           <div id="packList" class="pack-list"></div>
@@ -1414,48 +1456,6 @@
             <span aria-hidden="true">🧠</span>
             <span data-i18n="Open memory">Open memory</span>
           </button>
-        </section>
-        <section class="mcp-section">
-          <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
-          <p class="memory-hint">
-            <span
-              data-i18n="Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created."
-              >Connect MCP servers so your pets can use their tools while
-              talking. Each connection is registered as a Botnoi tool and
-              attached when a pet agent is created.</span
-            >
-          </p>
-          <form id="mcpForm" class="coupon-form mcp-form">
-            <input
-              id="mcpName"
-              type="text"
-              maxlength="60"
-              required
-              placeholder="Name"
-              aria-label="MCP name"
-              data-i18n-placeholder="Name"
-            />
-            <input
-              id="mcpUrl"
-              type="url"
-              required
-              placeholder="https://…"
-              aria-label="MCP server URL"
-            />
-            <input
-              id="mcpAuthValue"
-              type="password"
-              autocomplete="off"
-              placeholder="Optional API key"
-              aria-label="Optional API key"
-              data-i18n-placeholder="Optional API key"
-            />
-            <button id="mcpAddBtn" type="submit" class="secondary">
-              <span data-i18n="Add MCP">Add MCP</span>
-            </button>
-          </form>
-          <p id="mcpMessage" class="coupon-message" role="status" hidden></p>
-          <div id="mcpList" class="mcp-list"></div>
         </section>
         <div class="account-actions">
           <button id="openAdminBtn" type="button" class="secondary" hidden>
