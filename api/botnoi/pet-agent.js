@@ -4,7 +4,7 @@ import {
   botnoiConfigured,
   createOrUpdateAgent,
 } from "../../server/botnoi.js";
-import { adminClient, userFromRequest } from "../../server/supabase.js";
+import { adminClient, userClient, userFromRequest } from "../../server/supabase.js";
 import { activeToolNamesForUser } from "../../server/mcp.js";
 
 /**
@@ -24,8 +24,8 @@ export async function PUT(request) {
       "Set BOTNOI_VOICE_TOKEN on the server first.",
       400,
     );
-  const admin = adminClient();
-  if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
+  const db = adminClient() ?? userClient(request);
+  if (!db) return jsonError("not_configured", "Server is not configured.", 500);
 
   const body = await readJson(request);
   const petId = String(body.petId || body.pet_id || "").trim();
@@ -35,7 +35,7 @@ export async function PUT(request) {
   const language = body.language === "th" ? "th" : "en";
   const personality = String(body.personality || body.greeting || "").trim();
   const existingAgentId = String(body.agentId || body.agent_id || "").trim() || null;
-  const toolNames = await activeToolNamesForUser(admin, user.id);
+  const toolNames = await activeToolNamesForUser(db, user.id);
   const botName = `tm_${String(user.id).replace(/-/g, "").slice(0, 8)}_${petId.slice(0, 12)}`;
 
   const agentData = agentDataWithTools(
