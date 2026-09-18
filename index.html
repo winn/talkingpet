@@ -1416,21 +1416,37 @@
               aria-label="What this tool does"
               data-i18n-placeholder="What this tool does, so the pet knows how to use it"
             ></textarea>
-            <textarea
-              id="mcpParameters"
-              maxlength="500"
-              rows="3"
-              placeholder="Must send the province name and the date to check"
-              aria-label="What to send"
-              data-i18n-placeholder="Must send the province name and the date to check"
-            ></textarea>
-            <p class="memory-hint">
-              <span
-                data-i18n="Write what the pet should send, in your own words. Leave blank if the tool needs nothing."
-                >Write what the pet should send, in your own words. Leave blank
-                if the tool needs nothing.</span
-              >
-            </p>
+            <div class="mcp-params">
+              <div class="mcp-param-mode" role="group" aria-label="How to enter parameters">
+                <button type="button" data-param-mode="form" aria-pressed="true">
+                  <span data-i18n="Form">Form</span>
+                </button>
+                <button type="button" data-param-mode="json" aria-pressed="false">
+                  JSON
+                </button>
+              </div>
+              <div id="mcpParamForm">
+                <div id="mcpParamRows"></div>
+                <button id="mcpAddParam" type="button" class="text-button">
+                  <span data-i18n="Add parameter">Add parameter</span>
+                </button>
+              </div>
+              <textarea
+                id="mcpParameters"
+                rows="6"
+                spellcheck="false"
+                hidden
+                placeholder='{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}'
+                aria-label="Parameters as JSON"
+              ></textarea>
+              <p class="memory-hint">
+                <span
+                  data-i18n="Add each thing the pet should send, or switch to JSON. Leave it empty if the tool needs nothing."
+                  >Add each thing the pet should send, or switch to JSON. Leave
+                  it empty if the tool needs nothing.</span
+                >
+              </p>
+            </div>
             <div class="mcp-form-actions">
               <button id="mcpAddBtn" type="submit" class="secondary">
                 <span data-i18n="Add MCP">Add MCP</span>

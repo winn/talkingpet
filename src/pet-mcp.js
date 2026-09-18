@@ -86,6 +86,8 @@ export async function openPetMcp(pet, hooks = {}) {
     .map((server) => {
       const when = chosen.get(server.id) || "";
       const checked = chosen.has(server.id);
+      const names = Object.keys(server.parameters?.properties || {});
+      const extra = names.length ? names.join(", ") : server.parameter_hint || "";
       return `
       <label class="pet-mcp-item">
         <span class="pet-mcp-check">
@@ -93,7 +95,7 @@ export async function openPetMcp(pet, hooks = {}) {
           <span>
             <strong>${escapeHtml(server.name)}</strong>
             <small>${escapeHtml(server.description || t("No description yet."))}${
-              server.parameter_hint ? ` · ${escapeHtml(server.parameter_hint)}` : ""
+              extra ? ` · ${escapeHtml(extra)}` : ""
             }</small>
           </span>
         </span>

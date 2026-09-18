@@ -303,10 +303,20 @@ export const TH = {
     "เขียนว่าเครื่องมือนี้ทำอะไร และต้องส่งอะไรเป็นประโยคธรรมดา แล้วที่สัตว์เลี้ยงแต่ละตัว เลือกเครื่องมือที่จะใช้และตอนที่ควรเรียก",
   "What this tool does, so the pet knows how to use it":
     "เครื่องมือนี้ทำอะไร เพื่อให้สัตว์เลี้ยงรู้ว่าจะใช้ยังไง",
-  "Write what the pet should send, in your own words. Leave blank if the tool needs nothing.":
-    "เขียนเองได้เลยว่าต้องส่งอะไร เช่น ชื่อจังหวัดกับวันที่ เว้นว่างได้ถ้าไม่ต้องส่งอะไร",
-  "Must send the province name and the date to check":
-    "ต้องส่งชื่อจังหวัด กับวันที่ ที่ต้องการเช็ค",
+  "Add each thing the pet should send, or switch to JSON. Leave it empty if the tool needs nothing.":
+    "เพิ่มสิ่งที่ต้องส่งทีละช่อง หรือสลับไปใช้ JSON เว้นว่างได้ถ้าไม่ต้องส่งอะไร",
+  Form: "ฟอร์ม",
+  "Add parameter": "เพิ่มพารามิเตอร์",
+  "Parameter name": "ชื่อพารามิเตอร์",
+  Type: "ชนิด",
+  Text: "ข้อความ",
+  Number: "ตัวเลข",
+  Integer: "จำนวนเต็ม",
+  "Yes / No": "ใช่ / ไม่ใช่",
+  Required: "จำเป็น",
+  "Each parameter needs a name.": "ทุกพารามิเตอร์ต้องมีชื่อ",
+  "Parameter names must be different.": "ชื่อพารามิเตอร์ต้องไม่ซ้ำ",
+  "This JSON is too detailed for the form.": "JSON นี้ละเอียดเกินกว่าจะใส่ในฟอร์ม",
   "A description is required so the pet knows what this tool does.":
     "ต้องเขียนคำอธิบาย เพื่อให้สัตว์เลี้ยงรู้ว่าเครื่องมือนี้ทำอะไร",
   "Parameters must be JSON.": "พารามิเตอร์ต้องเป็น JSON",

@@ -813,6 +813,138 @@ function bindCouponForm() {
 
 let mcpCache = [];
 
+const MCP_PARAM_TYPES = [
+  ["string", "Text"],
+  ["number", "Number"],
+  ["integer", "Integer"],
+  ["boolean", "Yes / No"],
+];
+
+function paramTypeOptions(selected) {
+  return MCP_PARAM_TYPES.map(
+    ([value, label]) =>
+      `<option value="${value}"${value === selected ? " selected" : ""}>${escapeHtml(t(label))}</option>`,
+  ).join("");
+}
+
+function rowsFromSchema(schema) {
+  const props = schema?.properties;
+  if (!props || typeof props !== "object") return [];
+  const required = new Set(schema.required || []);
+  return Object.entries(props).map(([name, spec]) => ({
+    name,
+    type: MCP_PARAM_TYPES.some(([value]) => value === spec?.type) ? spec.type : "string",
+    required: required.has(name),
+    description: typeof spec?.description === "string" ? spec.description : "",
+  }));
+}
+
+function schemaIsFormFriendly(schema) {
+  const props = schema?.properties;
+  if (!props || typeof props !== "object") return true;
+  return Object.values(props).every((spec) => {
+    if (!spec || typeof spec !== "object" || Array.isArray(spec)) return false;
+    const keys = Object.keys(spec).filter((key) => spec[key] != null && spec[key] !== "");
+    return (
+      MCP_PARAM_TYPES.some(([value]) => value === spec.type) &&
+      keys.every((key) => key === "type" || key === "description")
+    );
+  });
+}
+
+function schemaFromRows(rows) {
+  const properties = {};
+  const required = [];
+  for (const row of rows) {
+    const spec = { type: row.type || "string" };
+    if (row.description) spec.description = row.description;
+    properties[row.name] = spec;
+    if (row.required) required.push(row.name);
+  }
+  return { type: "object", properties, required };
+}
+
+function readParamRows() {
+  return [...document.querySelectorAll("#mcpParamRows .mcp-param-row")].map((row) => ({
+    name: row.querySelector(".mcp-param-name")?.value || "",
+    type: row.querySelector(".mcp-param-type")?.value || "string",
+    required: Boolean(row.querySelector(".mcp-param-required input")?.checked),
+    description: row.dataset.description || "",
+  }));
+}
+
+function renderParamRows(rows) {
+  const list = $("#mcpParamRows");
+  if (!list) return;
+  const source = rows.length ? rows : [{ name: "", type: "string", required: true, description: "" }];
+  list.innerHTML = source
+    .map(
+      (row) => `
+    <div class="mcp-param-row" data-description="${escapeHtml(row.description || "")}">
+      <input class="mcp-param-name" type="text" maxlength="40" placeholder="${escapeHtml(t("Parameter name"))}" aria-label="${escapeHtml(t("Parameter name"))}" value="${escapeHtml(row.name || "")}" />
+      <select class="mcp-param-type" aria-label="${escapeHtml(t("Type"))}">${paramTypeOptions(row.type || "string")}</select>
+      <button type="button" class="text-button mcp-param-remove" aria-label="${escapeHtml(t("Remove"))}">×</button>
+      <label class="mcp-param-required"><input type="checkbox"${row.required ? " checked" : ""} /> ${escapeHtml(t("Required"))}</label>
+    </div>`,
+    )
+    .join("");
+}
+
+function setParamMode(mode, schema) {
+  const useJson = mode === "json";
+  const formBox = $("#mcpParamForm");
+  const jsonBox = $("#mcpParameters");
+  if (formBox) formBox.hidden = useJson;
+  if (jsonBox) jsonBox.hidden = !useJson;
+  document.querySelectorAll("[data-param-mode]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.paramMode === mode));
+  });
+  if (!schema) return;
+  if (useJson) {
+    const empty = !schema.properties || !Object.keys(schema.properties).length;
+    jsonBox.value = empty ? "" : JSON.stringify(schema, null, 2);
+  } else {
+    renderParamRows(rowsFromSchema(schema));
+  }
+}
+
+function collectParameters() {
+  const useJson = $("#mcpParamForm")?.hidden;
+  if (useJson) {
+    const text = $("#mcpParameters")?.value.trim() || "";
+    if (!text) return { type: "object", properties: {}, required: [] };
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(t("Parameters must be JSON."));
+    }
+  }
+  const rows = readParamRows();
+  const filled = [];
+  for (const row of rows) {
+    const name = row.name.trim();
+    if (!name) {
+      if (rows.length === 1) continue;
+      throw new Error(t("Each parameter needs a name."));
+    }
+    filled.push({ ...row, name });
+  }
+  if (new Set(filled.map((row) => row.name)).size !== filled.length)
+    throw new Error(t("Parameter names must be different."));
+  return schemaFromRows(filled);
+}
+
+function paramSummary(server) {
+  const props = server.parameters?.properties;
+  if (props && typeof props === "object" && Object.keys(props).length) {
+    const required = new Set(server.parameters.required || []);
+    return Object.entries(props)
+      .map(([name, spec]) => `${name} (${spec?.type || "string"}${required.has(name) ? ", required" : ""})`)
+      .join(", ");
+  }
+  return server.parameter_hint || "";
+}
+
 function setMcpMessage(message, success = false) {
   const box = $("#mcpMessage");
   if (!box) return;
@@ -837,7 +969,7 @@ async function loadMcpServers() {
         <div>
           <strong>${escapeHtml(server.name)}</strong>
           <p class="admin-row-meta">${escapeHtml(server.description || t("No description yet."))}</p>
-          <p class="admin-row-meta">${escapeHtml(server.parameter_hint || t("No parameters."))}</p>
+          <p class="admin-row-meta">${escapeHtml(paramSummary(server) || t("No parameters."))}</p>
         </div>
         <div class="mcp-row-actions">
           <button type="button" class="text-button mcp-edit" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Edit"))}</button>
@@ -859,7 +991,7 @@ function clearMcpForm() {
   $("#mcpUrl").value = "";
   $("#mcpAuthValue").value = "";
   $("#mcpDescription").value = "";
-  $("#mcpParameters").value = "";
+  setParamMode("form", { type: "object", properties: {}, required: [] });
   $("#mcpCancelEdit").hidden = true;
   localizeText($("#mcpAddBtn").querySelector("span"), "Add MCP");
 }
@@ -871,7 +1003,11 @@ function fillMcpForm(server) {
   $("#mcpUrl").value = server.url || "";
   $("#mcpAuthValue").value = "";
   $("#mcpDescription").value = server.description || "";
-  $("#mcpParameters").value = server.parameter_hint || "";
+  const schema =
+    server.parameters && typeof server.parameters === "object"
+      ? server.parameters
+      : { type: "object", properties: {}, required: [] };
+  setParamMode(schemaIsFormFriendly(schema) ? "form" : "json", schema);
   $("#mcpCancelEdit").hidden = false;
   localizeText($("#mcpAddBtn").querySelector("span"), "Save");
   $("#mcpSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -887,13 +1023,19 @@ function bindMcpForm() {
     const url = $("#mcpUrl").value.trim();
     const authValue = $("#mcpAuthValue").value.trim();
     const description = $("#mcpDescription").value.trim();
-    const parameterHint = $("#mcpParameters").value.trim();
     if (!name || !url) {
       setMcpMessage(t("Name and URL are required."));
       return;
     }
     if (!description) {
       setMcpMessage(t("A description is required so the pet knows what this tool does."));
+      return;
+    }
+    let parameters;
+    try {
+      parameters = collectParameters();
+    } catch (err) {
+      setMcpMessage(err instanceof Error ? err.message : t("Parameters must be JSON."));
       return;
     }
     const editing = form.dataset.editId || "";
@@ -904,7 +1046,8 @@ function bindMcpForm() {
         name,
         url,
         description,
-        parameterHint,
+        parameters,
+        parameterHint: "",
         ...(authValue
           ? { authValue, authHeader: "Authorization" }
           : {}),
@@ -928,6 +1071,49 @@ function bindMcpForm() {
     clearMcpForm();
     setMcpMessage(null);
   });
+  $("#mcpAddParam")?.addEventListener("click", () => {
+    renderParamRows([...readParamRows(), { name: "", type: "string", required: true, description: "" }]);
+  });
+  $("#mcpParamRows")?.addEventListener("click", (event) => {
+    const button = event.target.closest(".mcp-param-remove");
+    if (!button) return;
+    const rows = readParamRows();
+    const index = [...document.querySelectorAll("#mcpParamRows .mcp-param-row")].indexOf(
+      button.closest(".mcp-param-row"),
+    );
+    if (index >= 0) rows.splice(index, 1);
+    renderParamRows(rows);
+  });
+  document.querySelector(".mcp-param-mode")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-param-mode]");
+    if (!button || button.getAttribute("aria-pressed") === "true") return;
+    if (button.dataset.paramMode === "json") {
+      try {
+        setParamMode("json", collectParameters());
+        setMcpMessage(null);
+      } catch (err) {
+        setMcpMessage(err instanceof Error ? err.message : t("Parameters must be JSON."));
+      }
+      return;
+    }
+    const text = $("#mcpParameters")?.value.trim() || "";
+    let schema = { type: "object", properties: {}, required: [] };
+    if (text) {
+      try {
+        schema = JSON.parse(text);
+      } catch {
+        setMcpMessage(t("Parameters must be JSON."));
+        return;
+      }
+    }
+    if (!schemaIsFormFriendly(schema)) {
+      setMcpMessage(t("This JSON is too detailed for the form."));
+      return;
+    }
+    setMcpMessage(null);
+    setParamMode("form", schema);
+  });
+  renderParamRows([]);
   $("#mcpList")?.addEventListener("click", async (event) => {
     const edit = event.target.closest(".mcp-edit");
     if (edit) {

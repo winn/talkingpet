@@ -3993,6 +3993,58 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   padding: 10px 12px;
   resize: vertical;
 }
+.mcp-param-mode {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #f3e6d6;
+  width: fit-content;
+}
+.mcp-param-mode button {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  min-height: 32px;
+  padding: 0 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.mcp-param-mode button[aria-pressed="true"] {
+  background: #fffefb;
+}
+.mcp-param-rows,
+#mcpParamRows {
+  display: grid;
+  gap: 8px;
+}
+.mcp-param-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem auto;
+  gap: 8px;
+  align-items: center;
+}
+.mcp-param-required {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.mcp-param-required input {
+  min-height: 0;
+  width: 18px;
+  height: 18px;
+}
+.mcp-form select {
+  min-height: 44px;
+  border: 1.5px solid #e3cdb5;
+  background: #fffefb;
+  border-radius: 12px;
+  padding: 0 8px;
+  font: inherit;
+}
 .mcp-form-actions {
   display: flex;
   align-items: center;
