@@ -182,14 +182,6 @@ export const TH = {
   "Could not save yet. Your work is still here. Please try again.":
     "ยังบันทึกไม่ได้ ผลงานยังอยู่นะ ลองอีกครั้งได้เลย",
   "Getting ready to say hello…": "กำลังเตรียมตัวทักทาย…",
-  "Connecting the voice…": "กำลังเชื่อมเสียง…",
-  "Allow the microphone, then try Talk again.":
-    "อนุญาตไมโครโฟนก่อน แล้วลองคุยอีกครั้งนะ",
-  "The Botnoi call key was rejected. Check AI keys.":
-    "คีย์โทรของ Botnoi ใช้ไม่ได้ ตรวจที่ AI keys นะ",
-  "Could not open the Botnoi call.": "เปิดสาย Botnoi ไม่ได้",
-  "Add the Botnoi call key in AI keys, then try Talk again.":
-    "ใส่คีย์โทรของ Botnoi ที่ AI keys ก่อน แล้วลองคุยอีกครั้ง",
   "Your pet is saved! We couldn’t connect to chat. Go back to My pets and try again.":
     "บันทึกเพื่อนแล้ว! แต่เชื่อมต่อห้องคุยไม่ได้ กลับไปหน้าเพื่อนของเราแล้วลองใหม่นะ",
   "Colors cleared. Undo brings them back.":
@@ -303,60 +295,13 @@ export const TH = {
     "เก็บมาจากการคุยกัน เพิ่มเองได้ หรือกดลืมเรื่องที่ไม่อยากให้จำ",
   Memory: "ความทรงจำ",
   "Open memory": "เปิดความทรงจำ",
-  "Checking a tool…": "กำลังเช็กเครื่องมือ…",
-  "Got it from {name}. Saying it now…": "ได้คำตอบจาก {name} แล้ว กำลังพูดให้ฟัง…",
-  "Could not use {name}.": "ใช้ {name} ไม่ได้",
   "MCP tools for your pets": "เครื่องมือ MCP สำหรับสัตว์เลี้ยง",
   "MCP tools": "เครื่องมือ MCP",
   "Add an MCP server here. It will be attached the next time you talk to a pet.":
     "เพิ่มเซิร์ฟเวอร์ MCP ที่นี่ จะถูกผูกตอนคุยกับสัตว์เลี้ยงครั้งถัดไป",
-  "Describe what the tool does, and in your own words what the pet should send. On each pet, choose which tools it may use and when.":
-    "เขียนว่าเครื่องมือนี้ทำอะไร และต้องส่งอะไรเป็นประโยคธรรมดา แล้วที่สัตว์เลี้ยงแต่ละตัว เลือกเครื่องมือที่จะใช้และตอนที่ควรเรียก",
-  "What this tool does, so the pet knows how to use it":
-    "เครื่องมือนี้ทำอะไร เพื่อให้สัตว์เลี้ยงรู้ว่าจะใช้ยังไง",
-  "Add each thing the pet should send, or switch to JSON. Leave it empty if the tool needs nothing.":
-    "เพิ่มสิ่งที่ต้องส่งทีละช่อง หรือสลับไปใช้ JSON เว้นว่างได้ถ้าไม่ต้องส่งอะไร",
-  Form: "ฟอร์ม",
-  "Add parameter": "เพิ่มพารามิเตอร์",
-  "Parameter name": "ชื่อพารามิเตอร์",
-  Type: "ชนิด",
-  Text: "ข้อความ",
-  Number: "ตัวเลข",
-  Integer: "จำนวนเต็ม",
-  "Yes / No": "ใช่ / ไม่ใช่",
-  Required: "จำเป็น",
-  "Each parameter needs a name.": "ทุกพารามิเตอร์ต้องมีชื่อ",
-  "Parameter names must be different.": "ชื่อพารามิเตอร์ต้องไม่ซ้ำ",
-  "This JSON is too detailed for the form.": "JSON นี้ละเอียดเกินกว่าจะใส่ในฟอร์ม",
-  "A description is required so the pet knows what this tool does.":
-    "ต้องเขียนคำอธิบาย เพื่อให้สัตว์เลี้ยงรู้ว่าเครื่องมือนี้ทำอะไร",
-  "Parameters must be JSON.": "พารามิเตอร์ต้องเป็น JSON",
-  "MCP server updated.": "อัปเดต MCP แล้ว",
-  "No description yet.": "ยังไม่มีคำอธิบาย",
-  "No parameters.": "ไม่มีพารามิเตอร์",
-  "Tools for": "เครื่องมือของ",
-  "Check the tools this pet may use, and say when it should call each one.":
-    "เลือกเครื่องมือที่ตัวนี้ใช้ได้ และบอกว่าควรเรียกตอนไหน",
-  "When should this pet call it?": "ควรเรียกตอนไหน?",
-  "Say when {name} should call this tool.": "บอกด้วยว่า {name} ควรเรียกเครื่องมือนี้ตอนไหน",
-  "No MCP servers yet. Add one in your account first.":
-    "ยังไม่มีเซิร์ฟเวอร์ MCP เพิ่มในบัญชีก่อน",
-  "Could not save.": "บันทึกไม่ได้",
-  Save: "บันทึก",
-  Edit: "แก้ไข",
-  "Loading…": "กำลังโหลด…",
+  "Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created.":
+    "เชื่อมต่อเซิร์ฟเวอร์ MCP เพื่อให้สัตว์เลี้ยงใช้เครื่องมือได้ตอนคุย แต่ละการเชื่อมต่อจะลงทะเบียนเป็นเครื่องมือ Botnoi และผูกตอนสร้าง agent ของสัตว์เลี้ยง",
   "Add MCP": "เพิ่ม MCP",
-  "Test": "ทดสอบ",
-  "Test value": "ค่าทดสอบ",
-  "Testing the MCP server…": "กำลังทดสอบเซิร์ฟเวอร์ MCP…",
-  "Connected. Tools: {tools}": "เชื่อมต่อได้ เครื่องมือ: {tools}",
-  "Connected, but this server listed no tools.": "เชื่อมต่อได้ แต่เซิร์ฟเวอร์นี้ไม่มีเครื่องมือ",
-  "Could not tell which tool to call. Make the description clearer.":
-    "เซิร์ฟเวอร์ตอบแล้ว แต่ยังเลือกเครื่องมือไม่ถูก ทำให้คำอธิบายชัดขึ้น",
-  "Called {tool}": "เรียก {tool}",
-  "Sent {args}": "ส่ง {args}",
-  "Fill in {name}, then test again.": "ใส่ {name} ก่อน แล้วกดทดสอบอีกครั้ง",
-  "Could not test the MCP server.": "ทดสอบ MCP ไม่ได้",
   "Optional API key": "API key (ถ้ามี)",
   "No MCP servers yet.": "ยังไม่มีเซิร์ฟเวอร์ MCP",
   "MCP server connected.": "เชื่อมต่อ MCP แล้ว",

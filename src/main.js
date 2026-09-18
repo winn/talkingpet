@@ -84,10 +84,6 @@ import {
   applyTalkSceneBackdrop,
 } from "./backgrounds.js";
 import { ensurePetVoiceAgent } from "./botnoi-client.js";
-import { startBotnoiCall, stopBotnoiCall } from "./botnoi-call.js";
-import { startPetStage, stopPetStage, setPetSpeaking } from "./botnoi-stage.js";
-import { loadTalkMcpNote, mcpResultInstruction, usePetMcp } from "./mcp-talk.js";
-import { openPetMcp } from "./pet-mcp.js";
 
 // Prevent mobile browser page zoom while preserving canvas pinch gestures
 initPreventPageZoom();
@@ -396,7 +392,6 @@ async function endTalkSession({ extract = false } = {}) {
   widgetUserMessagesHooked = false;
   stopChatCapture();
   chatLaunchToken++;
-  stopBotnoiTalk();
   activeChatPet = null;
   chatThemeObserver?.disconnect();
   talkControls?.destroy();
@@ -594,7 +589,11 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
 /** Push the current memories into the running chat's instructions. */
 async function pushGreetingToWidget() {
   if (!activeChatPet || !window.ChatWidgetConfig) return;
-  const greetingInstruction = currentChatGreeting();
+  const greetingInstruction = buildChatGreeting(
+    activeChatPet,
+    getLanguage(),
+    activeMemories,
+  );
   window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
   if (typeof window.ChatWidget?.updateConfig === "function") {
     try {
@@ -680,7 +679,7 @@ function renderPetGrid(pets) {
       const config = getPetConfig(pet.petType, petGender(pet));
       const card = document.createElement("article");
       card.className = "pet-card";
-      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="pet-mcp-btn secondary">${t("MCP tools")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
+      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
       applyBackdrop(
         card.querySelector(".pet-preview"),
         normalizeBackground(pet.backgroundColor),
@@ -713,14 +712,6 @@ function renderPetGrid(pets) {
       card
         .querySelector(".edit-prompt-btn")
         .addEventListener("click", () => openPromptOnly(pet));
-      card.querySelector(".pet-mcp-btn").addEventListener("click", () => {
-        openPetMcp(pet, {
-          onSaved(saved) {
-            Object.assign(pet, saved);
-            lastPets = lastPets.map((item) => (item.id === saved.id ? pet : item));
-          },
-        });
-      });
       card
         .querySelector(".talk-btn")
         .addEventListener("click", () =>
@@ -966,112 +957,28 @@ async function startTalk(pet) {
   return true;
 }
 
-let hookedUserMessageWidget = null;
-let talkMcpNote = "";
-let talkMcpResult = "";
-const mcpHandledTurns = new Set();
-let mcpTurnBusy = false;
-let lastMcpUserStamp = 0;
-
-function currentChatGreeting() {
-  return `${buildChatGreeting(activeChatPet, getLanguage(), activeMemories)}${talkMcpNote}${talkMcpResult}`;
-}
-
-function noteNewUserTurns() {
-  for (const turn of getCapturedTurns()) {
-    if (turn.sender !== "user" || !turn.text) continue;
-    if (turn.timestamp <= lastMcpUserStamp) continue;
-    lastMcpUserStamp = Math.max(lastMcpUserStamp, turn.timestamp);
-    void answerWithMcp(turn.text);
-  }
-}
+let widgetUserMessagesHooked = false;
+/** Register once ChatWidget exists; retries until the widget is ready. */
 function hookWidgetUserMessages() {
-  const widget = window.ChatWidget;
-  const register = widget?.onUserMessage;
-  if (!widget || typeof register !== "function") return;
-  if (hookedUserMessageWidget === widget) return;
-  hookedUserMessageWidget = widget;
+  if (widgetUserMessagesHooked) return;
+  const register = window.ChatWidget?.onUserMessage;
+  if (typeof register !== "function") return;
+  widgetUserMessagesHooked = true;
   try {
     register((text) => {
       if (!activeChatPet) return;
       pushCapturedTurn({ sender: "user", text, timestamp: Date.now() });
       if (isChatLogOpen()) renderChatLog(currentTurns());
-      void answerWithMcp(text);
     });
   } catch (err) {
-    hookedUserMessageWidget = null;
+    widgetUserMessagesHooked = false;
     console.warn("[TalkingMomo] onUserMessage hook failed:", err);
   }
-}
-
-/**
- * The species widget has no per-pet tools. When the line matches a linked
- * server, call that MCP ourselves and reload the session so the pet says the result.
- */
-async function answerWithMcp(text) {
-  const pet = activeChatPet;
-  const line = String(text || "").trim();
-  if (!pet?.mcpLinks?.length || !line || mcpTurnBusy) return;
-  if (mcpHandledTurns.has(line)) return;
-  const status = document.querySelector("#chatStatus");
-  mcpTurnBusy = true;
-  if (status) localizeText(status, "Checking a tool…");
-  try {
-    const used = await usePetMcp(pet, line);
-    if (activeChatPet?.id !== pet.id) return;
-    if (!used?.matched) {
-      if (status) localizeText(status, "");
-      return;
-    }
-    mcpHandledTurns.add(line);
-    if (!used.ok || !used.result) {
-      if (status) localizeText(status, "Could not use {name}.", { name: used.serverName || "tool" });
-      return;
-    }
-    talkMcpResult = mcpResultInstruction({
-      userText: line,
-      tool: used.tool,
-      serverName: used.serverName,
-      result: used.result,
-      language: getLanguage(),
-    });
-    const greetingInstruction = currentChatGreeting();
-    if (window.ChatWidgetConfig) window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
-    pushCapturedTurn({ sender: "bot", text: used.result, timestamp: Date.now() });
-    if (isChatLogOpen()) renderChatLog(currentTurns());
-    if (status) localizeText(status, "Got it from {name}. Saying it now…", { name: used.serverName || used.tool });
-    if (window.ChatWidget && typeof window.ChatWidget.updateConfig === "function") {
-      await window.ChatWidget.updateConfig({
-        ...window.ChatWidgetConfig,
-        greetingInstruction,
-      });
-      hookWidgetUserMessages();
-    }
-  } catch (err) {
-    console.warn("[TalkingMomo] MCP call failed:", err);
-    if (status) localizeText(status, "Could not use {name}.", { name: "tool" });
-  } finally {
-    mcpTurnBusy = false;
-  }
-}
-
-function stopBotnoiTalk() {
-  stopBotnoiCall();
-  stopPetStage();
-}
-
-function botnoiCallError(kind) {
-  if (kind === "mic_denied" || kind === "no_mic") {
-    return "Allow the microphone, then try Talk again.";
-  }
-  if (kind === "key_rejected") return "The Botnoi call key was rejected. Check AI keys.";
-  return "Could not open the Botnoi call.";
 }
 
 export async function launchPetChat(pet) {
   const config = getPetConfig(pet.petType, petGender(pet));
   const launchToken = ++chatLaunchToken;
-  stopBotnoiTalk();
 
   pausePainterScene();
 
@@ -1101,16 +1008,11 @@ export async function launchPetChat(pet) {
   activeChatPet = pet;
   talkStartedAt = Date.now();
   typedTurns = [];
-  talkMcpNote = "";
-  talkMcpResult = "";
-  mcpHandledTurns.clear();
-  lastMcpUserStamp = 0;
   clearCapturedTurns();
   sessionTranscriptBackup = [];
   sessionRememberDone = false;
   const paintCaptured = () => {
     if (launchToken !== chatLaunchToken) return;
-    noteNewUserTurns();
     if (isChatLogOpen()) renderChatLog(currentTurns());
   };
   startChatCapture(document.querySelector("#chatWidgetContainer"), {
@@ -1130,9 +1032,10 @@ export async function launchPetChat(pet) {
     backgroundId,
   );
   document.querySelector("#talkPetName").textContent = pet.name;
-  const status = document.querySelector("#chatStatus");
-  status?.classList.remove("hidden");
-  localizeText(status, "Getting ready to say hello…");
+  localizeText(
+    document.querySelector("#chatStatus"),
+    "Getting ready to say hello…",
+  );
 
   petHubScreen.classList.add("hidden");
   petHubScreen.style.display = "none";
@@ -1145,84 +1048,30 @@ export async function launchPetChat(pet) {
   talkScreen.classList.remove("hidden");
   talkScreen.style.display = "flex";
 
-  talkMcpNote = await loadTalkMcpNote(pet);
-  if (launchToken !== chatLaunchToken) return;
-  const greeting = currentChatGreeting();
+  const greeting = buildChatGreeting(pet, getLanguage(), activeMemories);
 
-  // Prefer a per-pet Botnoi agent. When the call key is saved, talk goes
-  // through preview_call instead of the shared Gemini widget.
+  // Prefer a per-pet Botnoi agent (with this account's MCP tools) when the
+  // Voice API token is configured; otherwise keep the shared species widget.
   let widgetId = config.widgetId;
-  let ensured = null;
   try {
-    ensured = await ensurePetVoiceAgent(pet, {
+    const ensured = await ensurePetVoiceAgent(pet, {
       personality: greeting,
       language: getLanguage(),
     });
-    if (ensured?.agentId && pet.botnoiAgentId !== ensured.agentId) {
-      pet.botnoiAgentId = ensured.agentId;
-      activeChatPet = pet;
-      try {
-        await savePet({ ...pet, botnoiAgentId: ensured.agentId });
-      } catch (err) {
-        console.warn("[TalkingMomo] could not persist botnoiAgentId:", err);
+    if (ensured?.agentId) {
+      widgetId = ensured.agentId;
+      if (pet.botnoiAgentId !== ensured.agentId) {
+        pet.botnoiAgentId = ensured.agentId;
+        activeChatPet = pet;
+        try {
+          await savePet({ ...pet, botnoiAgentId: ensured.agentId });
+        } catch (err) {
+          console.warn("[TalkingMomo] could not persist botnoiAgentId:", err);
+        }
       }
     }
   } catch (err) {
     console.warn("[TalkingMomo] pet agent ensure skipped:", err);
-  }
-  if (launchToken !== chatLaunchToken) return;
-
-  if (ensured?.agentId && ensured.apiKey && ensured.wssUrl) {
-    if (window.ChatWidget?.destroy) {
-      try {
-        await window.ChatWidget.destroy();
-      } catch {
-        /* widget was not up */
-      }
-    }
-    document.getElementById("webavatar-jssdk")?.remove();
-    const chatContainer = document.querySelector("#chatWidgetContainer");
-    if (chatContainer) chatContainer.innerHTML = "";
-    localizeText(status, "Connecting the voice…");
-    startPetStage(chatContainer, vrmBlobUrl);
-    let lastAgentLine = "";
-    startBotnoiCall({
-      wssUrl: ensured.wssUrl,
-      apiKey: ensured.apiKey,
-      agentId: ensured.agentId,
-      onReady: () => {
-        if (launchToken !== chatLaunchToken) return;
-        status?.classList.add("hidden");
-      },
-      onTurn: (who, text, final) => {
-        if (launchToken !== chatLaunchToken) return;
-        if (who === "user") {
-          if (!final) return;
-          pushCapturedTurn({ sender: "user", text });
-        } else {
-          lastAgentLine = text;
-          return;
-        }
-        if (isChatLogOpen()) renderChatLog(currentTurns());
-      },
-      onAgentSpeaking: (speaking) => {
-        setPetSpeaking(speaking);
-        if (speaking || !lastAgentLine || launchToken !== chatLaunchToken) return;
-        pushCapturedTurn({ sender: "bot", text: lastAgentLine });
-        lastAgentLine = "";
-        if (isChatLogOpen()) renderChatLog(currentTurns());
-      },
-      onError: (kind) => {
-        if (launchToken !== chatLaunchToken) return;
-        status?.classList.remove("hidden");
-        localizeText(status, botnoiCallError(kind));
-      },
-    });
-    return;
-  }
-
-  if (ensured?.agentId && !ensured.apiKey) {
-    notify("Add the Botnoi call key in AI keys, then try Talk again.");
   }
 
   window.ChatWidgetConfig = {
@@ -2986,7 +2835,6 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
   startChatCapture(container, {
     onCapture: () => {
       if (launchToken !== chatLaunchToken) return;
-      noteNewUserTurns();
       if (isChatLogOpen()) renderChatLog(currentTurns());
     },
   });
@@ -3091,7 +2939,11 @@ window.addEventListener("languagechange", async () => {
     document.querySelector("#tryPromptBtn").click();
   if (activeChatPet && window.ChatWidgetConfig) {
     localizeChatControls(document.querySelector("#chatWidgetContainer"));
-    const greetingInstruction = currentChatGreeting();
+    const greetingInstruction = buildChatGreeting(
+      activeChatPet,
+      getLanguage(),
+      activeMemories,
+    );
     window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
     if (
       window.ChatWidget &&

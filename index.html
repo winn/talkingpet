@@ -513,19 +513,19 @@
         <section id="adminKeysPanel" class="admin-panel" hidden>
           <h2>AI keys</h2>
           <p class="admin-lead">
-            Provider keys for music, sounds, and Botnoi voice. Saved keys take
-            effect right away and are never shown again; they are checked with
-            the provider before saving.
+            Provider keys used to make music and sounds. Saved keys take effect
+            right away and are never shown again; they are checked with the
+            provider before saving.
           </p>
           <div id="adminKeyCards" class="admin-list"></div>
         </section>
         <section id="adminVoicePanel" class="admin-panel" hidden>
           <h2>Voice agents &amp; tools</h2>
           <p class="admin-lead">
-            Talking creates a new agent on Botnoi Voice and registers the pet’s
-            MCP tools. Add the console token and the call key in
-            <strong>AI keys</strong>. <code>BOTNOI_VOICE_TOKEN</code> and
-            <code>BOTNOI_CONNECTOR_KEY</code> on the server are only fallbacks.
+            Proxies the Botnoi Voice API
+            (<code>POST /platform-config/tools</code> and
+            <code>PUT /agent/create_update_agent</code>. Needs
+            <code>BOTNOI_VOICE_TOKEN</code> on the server.
           </p>
           <div class="admin-toolbar">
             <button id="adminRefreshVoiceBtn" type="button" class="secondary">
@@ -1376,13 +1376,13 @@
           <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
           <p class="memory-hint">
             <span
-              data-i18n="Describe what the tool does, and in your own words what the pet should send. On each pet, choose which tools it may use and when."
-              >Describe what the tool does, and in your own words what the pet
-              should send. On each pet, choose which tools it may use and
-              when.</span
+              data-i18n="Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created."
+              >Connect MCP servers so your pets can use their tools while
+              talking. Each connection is registered as a Botnoi tool and
+              attached when a pet agent is created.</span
             >
           </p>
-          <form id="mcpForm" class="mcp-form">
+          <form id="mcpForm" class="coupon-form mcp-form">
             <input
               id="mcpName"
               type="text"
@@ -1407,61 +1407,9 @@
               aria-label="Optional API key"
               data-i18n-placeholder="Optional API key"
             />
-            <textarea
-              id="mcpDescription"
-              required
-              maxlength="500"
-              rows="3"
-              placeholder="What this tool does, so the pet knows how to use it"
-              aria-label="What this tool does"
-              data-i18n-placeholder="What this tool does, so the pet knows how to use it"
-            ></textarea>
-            <div class="mcp-params">
-              <div class="mcp-param-mode" role="group" aria-label="How to enter parameters">
-                <button type="button" data-param-mode="form" aria-pressed="true">
-                  <span data-i18n="Form">Form</span>
-                </button>
-                <button type="button" data-param-mode="json" aria-pressed="false">
-                  JSON
-                </button>
-              </div>
-              <div id="mcpParamForm">
-                <div id="mcpParamRows"></div>
-                <button id="mcpAddParam" type="button" class="text-button">
-                  <span data-i18n="Add parameter">Add parameter</span>
-                </button>
-              </div>
-              <textarea
-                id="mcpParameters"
-                rows="6"
-                spellcheck="false"
-                hidden
-                placeholder='{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}'
-                aria-label="Parameters as JSON"
-              ></textarea>
-              <p class="memory-hint">
-                <span
-                  data-i18n="Add each thing the pet should send, or switch to JSON. Leave it empty if the tool needs nothing."
-                  >Add each thing the pet should send, or switch to JSON. Leave
-                  it empty if the tool needs nothing.</span
-                >
-              </p>
-            </div>
-            <div class="mcp-form-actions">
-              <button id="mcpAddBtn" type="submit" class="secondary">
-                <span data-i18n="Add MCP">Add MCP</span>
-              </button>
-              <button id="mcpTestBtn" type="button" class="secondary">
-                <span data-i18n="Test">Test</span>
-              </button>
-              <button id="mcpCancelEdit" type="button" class="text-button" hidden>
-                <span data-i18n="Cancel">Cancel</span>
-              </button>
-            </div>
-            <div id="mcpTestPanel" class="mcp-test" hidden>
-              <div id="mcpTestSamples" class="mcp-test-samples"></div>
-              <pre id="mcpTestResult" class="mcp-test-result" hidden></pre>
-            </div>
+            <button id="mcpAddBtn" type="submit" class="secondary">
+              <span data-i18n="Add MCP">Add MCP</span>
+            </button>
           </form>
           <p id="mcpMessage" class="coupon-message" role="status" hidden></p>
           <div id="mcpList" class="mcp-list"></div>
@@ -1645,37 +1593,6 @@
         <div class="dialog-actions memory-footer">
           <button id="forgetAllBtn" type="button" class="text-button" hidden>
             <span data-i18n="Forget everything">Forget everything</span>
-          </button>
-        </div>
-      </div>
-    </div>
-    <div
-      id="petMcpModal"
-      class="overlay hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="petMcpTitle"
-    >
-      <div class="dialog-card pet-mcp-card">
-        <h2 id="petMcpTitle">
-          <span data-i18n="Tools for">Tools for</span>
-          <span id="petMcpName">Momo</span>
-        </h2>
-        <p>
-          <span
-            data-i18n="Check the tools this pet may use, and say when it should call each one."
-            >Check the tools this pet may use, and say when it should call each
-            one.</span
-          >
-        </p>
-        <div id="petMcpList" class="pet-mcp-list"></div>
-        <p id="petMcpMessage" class="coupon-message" role="status" hidden></p>
-        <div class="dialog-actions">
-          <button id="petMcpCancel" type="button" class="secondary">
-            <span data-i18n="Cancel">Cancel</span>
-          </button>
-          <button id="petMcpSave" type="button" class="primary">
-            <span data-i18n="Save">Save</span>
           </button>
         </div>
       </div>

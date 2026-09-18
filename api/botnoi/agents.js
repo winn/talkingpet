@@ -1,11 +1,10 @@
 import { json, jsonError, readJson } from "../../server/http.js";
 import {
-  BOTNOI_TOKEN_HINT,
   agentDataWithTools,
+  botnoiConfigured,
   createOrUpdateAgent,
   getAgent,
   listAgents,
-  resolveBotnoiToken,
 } from "../../server/botnoi.js";
 import { requireAdmin } from "../../server/supabase.js";
 
@@ -23,12 +22,16 @@ import { requireAdmin } from "../../server/supabase.js";
 export async function GET(request) {
   const auth = await requireAdmin(request);
   if (!auth) return jsonError("admins_only", "Admins only.", 403);
-  const token = await resolveBotnoiToken(auth.client);
-  if (!token) return jsonError("missing_botnoi_token", BOTNOI_TOKEN_HINT, 400);
+  if (!botnoiConfigured())
+    return jsonError(
+      "missing_botnoi_token",
+      "Set BOTNOI_VOICE_TOKEN on the server first.",
+      400,
+    );
   const agentId = new URL(request.url).searchParams.get("agentId");
   try {
-    if (agentId) return json({ agent: await getAgent(agentId, { token }) });
-    const agents = await listAgents({ token });
+    if (agentId) return json({ agent: await getAgent(agentId) });
+    const agents = await listAgents();
     return json({
       agents: Array.isArray(agents) ? agents : agents?.data ?? agents,
     });
@@ -40,8 +43,12 @@ export async function GET(request) {
 export async function PUT(request) {
   const auth = await requireAdmin(request);
   if (!auth) return jsonError("admins_only", "Admins only.", 403);
-  const token = await resolveBotnoiToken(auth.client);
-  if (!token) return jsonError("missing_botnoi_token", BOTNOI_TOKEN_HINT, 400);
+  if (!botnoiConfigured())
+    return jsonError(
+      "missing_botnoi_token",
+      "Set BOTNOI_VOICE_TOKEN on the server first.",
+      400,
+    );
   const body = await readJson(request);
   const botName = String(body.bot_name || body.botName || "").trim();
   if (!botName) return jsonError("bad_request", "bot_name is required.", 400);
@@ -64,7 +71,7 @@ export async function PUT(request) {
   if (agentId) payload.agent_id = String(agentId);
 
   try {
-    const agent = await createOrUpdateAgent(payload, { token });
+    const agent = await createOrUpdateAgent(payload);
     return json({ agent });
   } catch (err) {
     return botnoiError(err);

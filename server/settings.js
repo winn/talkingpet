@@ -14,17 +14,6 @@ export const PROVIDERS = {
     verifyUrl: () => "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
     verifyHeaders: (key) => ({ "x-goog-api-key": key }),
   },
-  botnoi: {
-    setting: "botnoi_voice_token",
-    envVar: "BOTNOI_VOICE_TOKEN",
-    verifyUrl: () =>
-      `${(env("BOTNOI_VOICE_API_BASE") || "https://api-voicebot-stg.botnoigroup.com").replace(/\/$/, "")}/platform-config/tools`,
-    verifyHeaders: (key) => ({ authorization: `Bearer ${key}`, accept: "application/json" }),
-  },
-  botnoi_call: {
-    setting: "botnoi_connector_key",
-    envVar: "BOTNOI_CONNECTOR_KEY",
-  },
 };
 
 export function isProvider(name) {
@@ -92,51 +81,8 @@ async function restrictedButValid(res) {
   }
 }
 
-/**
- * The call key is not a bearer token. Probe preview_call the way Talking Jelly does:
- * a close that does not mention api_key means the connector accepted it.
- */
-function verifyBotnoiConnector(key) {
-  if (typeof WebSocket !== "function") throw new Error("verify_unreachable");
-  const url = `wss://voicebot-stg.botnoigroup.com/v1/preview_call?api_key=${encodeURIComponent(key)}&agent_id=${encodeURIComponent("agt_probe")}`;
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      try {
-        ws.close();
-      } catch {
-        /* already closed */
-      }
-      if (err) reject(err);
-      else resolve();
-    };
-    let ws;
-    try {
-      ws = new WebSocket(url);
-    } catch {
-      reject(new Error("verify_unreachable"));
-      return;
-    }
-    const timer = setTimeout(() => finish(new Error("invalid_key")), 8000);
-    ws.addEventListener("message", (event) => {
-      if (typeof event.data === "string" && event.data.includes('"opened"')) finish();
-    });
-    ws.addEventListener("close", (event) => {
-      const reason = String(event.reason || "");
-      finish(/api_key/i.test(reason) ? new Error("invalid_key") : undefined);
-    });
-    ws.addEventListener("error", () => {
-      /* close follows */
-    });
-  });
-}
-
 /** Ask the provider for the cheapest thing it offers, so a typo surfaces now. */
 export async function verifyKey(provider, key, fetchImpl = fetch) {
-  if (provider === "botnoi_call") return verifyBotnoiConnector(key);
   const spec = PROVIDERS[provider];
   let res;
   try {

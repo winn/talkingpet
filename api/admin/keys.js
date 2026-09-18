@@ -34,8 +34,7 @@ export async function POST(request) {
   try {
     if (action === "save") {
       const value = String(key ?? "").trim();
-      const max = provider === "botnoi" ? 4000 : 500;
-      if (value.length < 8 || value.length > max) {
+      if (value.length < 10 || value.length > 500) {
         return jsonError("bad_key", "Paste the whole key.", 400);
       }
       await verifyKey(provider, value);

@@ -37,16 +37,6 @@ export async function createMcpServer(input) {
   return data.server;
 }
 
-export async function updateMcpServer(input) {
-  const res = await fetch("/api/mcp/servers", {
-    method: "PUT",
-    headers: await authHeaders(),
-    body: JSON.stringify(input),
-  });
-  const data = await readApi(res);
-  return data.server;
-}
-
 export async function deleteMcpServer(id) {
   const res = await fetch(`/api/mcp/servers?id=${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -54,16 +44,6 @@ export async function deleteMcpServer(id) {
   });
   await readApi(res);
   return true;
-}
-
-/** Call an MCP URL from the form and return the tool result. Does not save. */
-export async function testMcpServer(input) {
-  const res = await fetch("/api/mcp/test", {
-    method: "POST",
-    headers: await authHeaders(),
-    body: JSON.stringify(input),
-  });
-  return readApi(res);
 }
 
 /**
@@ -82,7 +62,6 @@ export async function ensurePetVoiceAgent(pet, { personality = "", language = "e
         personality,
         language,
         agentId: pet.botnoiAgentId || null,
-        mcpLinks: Array.isArray(pet.mcpLinks) ? pet.mcpLinks : [],
       }),
     });
     if (res.status === 400) {
@@ -91,14 +70,7 @@ export async function ensurePetVoiceAgent(pet, { personality = "", language = "e
     }
     const data = await readApi(res);
     if (!data.agentId) return null;
-    return {
-      agentId: data.agentId,
-      toolNames: data.toolNames || [],
-      botName: data.botName,
-      engine: data.engine || "botnoi",
-      wssUrl: data.wssUrl || "",
-      apiKey: data.apiKey || "",
-    };
+    return { agentId: data.agentId, toolNames: data.toolNames || [], botName: data.botName };
   } catch (err) {
     console.warn("[TalkingMomo] pet agent ensure failed:", err);
     return null;

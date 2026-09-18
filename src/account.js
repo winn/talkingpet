@@ -3,8 +3,6 @@ import {
   createMcpServer,
   deleteMcpServer,
   listMcpServers,
-  testMcpServer,
-  updateMcpServer,
 } from "./botnoi-client.js";
 import {
   AI_PROVIDERS,
@@ -812,140 +810,6 @@ function bindCouponForm() {
   });
 }
 
-let mcpCache = [];
-
-const MCP_PARAM_TYPES = [
-  ["string", "Text"],
-  ["number", "Number"],
-  ["integer", "Integer"],
-  ["boolean", "Yes / No"],
-];
-
-function paramTypeOptions(selected) {
-  return MCP_PARAM_TYPES.map(
-    ([value, label]) =>
-      `<option value="${value}"${value === selected ? " selected" : ""}>${escapeHtml(t(label))}</option>`,
-  ).join("");
-}
-
-function rowsFromSchema(schema) {
-  const props = schema?.properties;
-  if (!props || typeof props !== "object") return [];
-  const required = new Set(schema.required || []);
-  return Object.entries(props).map(([name, spec]) => ({
-    name,
-    type: MCP_PARAM_TYPES.some(([value]) => value === spec?.type) ? spec.type : "string",
-    required: required.has(name),
-    description: typeof spec?.description === "string" ? spec.description : "",
-  }));
-}
-
-function schemaIsFormFriendly(schema) {
-  const props = schema?.properties;
-  if (!props || typeof props !== "object") return true;
-  return Object.values(props).every((spec) => {
-    if (!spec || typeof spec !== "object" || Array.isArray(spec)) return false;
-    const keys = Object.keys(spec).filter((key) => spec[key] != null && spec[key] !== "");
-    return (
-      MCP_PARAM_TYPES.some(([value]) => value === spec.type) &&
-      keys.every((key) => key === "type" || key === "description")
-    );
-  });
-}
-
-function schemaFromRows(rows) {
-  const properties = {};
-  const required = [];
-  for (const row of rows) {
-    const spec = { type: row.type || "string" };
-    if (row.description) spec.description = row.description;
-    properties[row.name] = spec;
-    if (row.required) required.push(row.name);
-  }
-  return { type: "object", properties, required };
-}
-
-function readParamRows() {
-  return [...document.querySelectorAll("#mcpParamRows .mcp-param-row")].map((row) => ({
-    name: row.querySelector(".mcp-param-name")?.value || "",
-    type: row.querySelector(".mcp-param-type")?.value || "string",
-    required: Boolean(row.querySelector(".mcp-param-required input")?.checked),
-    description: row.dataset.description || "",
-  }));
-}
-
-function renderParamRows(rows) {
-  const list = $("#mcpParamRows");
-  if (!list) return;
-  const source = rows.length ? rows : [{ name: "", type: "string", required: true, description: "" }];
-  list.innerHTML = source
-    .map(
-      (row) => `
-    <div class="mcp-param-row" data-description="${escapeHtml(row.description || "")}">
-      <input class="mcp-param-name" type="text" maxlength="40" placeholder="${escapeHtml(t("Parameter name"))}" aria-label="${escapeHtml(t("Parameter name"))}" value="${escapeHtml(row.name || "")}" />
-      <select class="mcp-param-type" aria-label="${escapeHtml(t("Type"))}">${paramTypeOptions(row.type || "string")}</select>
-      <button type="button" class="text-button mcp-param-remove" aria-label="${escapeHtml(t("Remove"))}">×</button>
-      <label class="mcp-param-required"><input type="checkbox"${row.required ? " checked" : ""} /> ${escapeHtml(t("Required"))}</label>
-    </div>`,
-    )
-    .join("");
-}
-
-function setParamMode(mode, schema) {
-  const useJson = mode === "json";
-  const formBox = $("#mcpParamForm");
-  const jsonBox = $("#mcpParameters");
-  if (formBox) formBox.hidden = useJson;
-  if (jsonBox) jsonBox.hidden = !useJson;
-  document.querySelectorAll("[data-param-mode]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.paramMode === mode));
-  });
-  if (!schema) return;
-  if (useJson) {
-    const empty = !schema.properties || !Object.keys(schema.properties).length;
-    jsonBox.value = empty ? "" : JSON.stringify(schema, null, 2);
-  } else {
-    renderParamRows(rowsFromSchema(schema));
-  }
-}
-
-function collectParameters() {
-  const useJson = $("#mcpParamForm")?.hidden;
-  if (useJson) {
-    const text = $("#mcpParameters")?.value.trim() || "";
-    if (!text) return { type: "object", properties: {}, required: [] };
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new Error(t("Parameters must be JSON."));
-    }
-  }
-  const rows = readParamRows();
-  const filled = [];
-  for (const row of rows) {
-    const name = row.name.trim();
-    if (!name) {
-      if (rows.length === 1) continue;
-      throw new Error(t("Each parameter needs a name."));
-    }
-    filled.push({ ...row, name });
-  }
-  if (new Set(filled.map((row) => row.name)).size !== filled.length)
-    throw new Error(t("Parameter names must be different."));
-  return schemaFromRows(filled);
-}
-
-function paramSummary(server) {
-  const props = server.parameters?.properties;
-  if (props && typeof props === "object" && Object.keys(props).length) {
-    const required = new Set(server.parameters.required || []);
-    return Object.entries(props)
-      .map(([name, spec]) => `${name} (${spec?.type || "string"}${required.has(name) ? ", required" : ""})`)
-      .join(", ");
-  }
-  return server.parameter_hint || "";
-}
-
 function setMcpMessage(message, success = false) {
   const box = $("#mcpMessage");
   if (!box) return;
@@ -954,163 +818,34 @@ function setMcpMessage(message, success = false) {
   box.classList.toggle("is-success", success);
 }
 
-function readTestSample() {
-  const sample = {};
-  document.querySelectorAll("#mcpTestSamples [data-sample]").forEach((input) => {
-    sample[input.dataset.sample] = input.value.trim();
-  });
-  return sample;
-}
-
-function ensureTestSamples(schema) {
-  const panel = $("#mcpTestPanel");
-  const box = $("#mcpTestSamples");
-  if (panel) panel.hidden = false;
-  if (!box) return {};
-  const props = schema?.properties && typeof schema.properties === "object" ? schema.properties : {};
-  const names = Object.keys(props);
-  const current = [...box.querySelectorAll("[data-sample]")].map((input) => input.dataset.sample).join("\0");
-  if (current !== names.join("\0")) {
-    const place = /จังหวัด|city|province|เมือง|town|location/i;
-    box.innerHTML = names
-      .map((name) => {
-        const value = place.test(name) ? "กรุงเทพ" : "";
-        return `<label class="mcp-test-sample"><span>${escapeHtml(name)}</span><input data-sample="${escapeHtml(name)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(t("Test value"))}" /></label>`;
-      })
-      .join("");
-  }
-  return readTestSample();
-}
-
-function showTestResult(text) {
-  const pre = $("#mcpTestResult");
-  if (!pre) return;
-  pre.hidden = !text;
-  pre.textContent = text || "";
-}
-
-async function runMcpFormTest() {
-  const url = $("#mcpUrl")?.value.trim() || "";
-  if (!url) {
-    setMcpMessage(t("Name and URL are required."));
-    return;
-  }
-  let parameters;
-  try {
-    parameters = collectParameters();
-  } catch (err) {
-    setMcpMessage(err instanceof Error ? err.message : t("Parameters must be JSON."));
-    return;
-  }
-  const sample = ensureTestSamples(parameters);
-  const missing = (parameters.required || []).find((name) => !sample[name]);
-  if (missing) {
-    setMcpMessage(t("Fill in {name}, then test again.", { name: missing }));
-    showTestResult("");
-    return;
-  }
-  const button = $("#mcpTestBtn");
-  if (button) button.disabled = true;
-  setMcpMessage(t("Testing the MCP server…"));
-  showTestResult("");
-  try {
-    const authValue = $("#mcpAuthValue")?.value.trim() || "";
-    const data = await testMcpServer({
-      url,
-      description: $("#mcpDescription")?.value.trim() || "",
-      parameters,
-      sample,
-      ...(authValue ? { authValue, authHeader: "Authorization" } : {}),
-    });
-    const lines = [];
-    if (data.tools?.length) lines.push(t("Connected. Tools: {tools}", { tools: data.tools.join(", ") }));
-    else lines.push(t("Connected, but this server listed no tools."));
-    if (data.tool) {
-      lines.push(t("Called {tool}", { tool: data.tool }));
-      lines.push(t("Sent {args}", { args: JSON.stringify(data.arguments || {}) }));
-    } else if ((data.tools || []).length > 1) {
-      lines.push(t("Could not tell which tool to call. Make the description clearer."));
-    }
-    if (data.result) lines.push("", data.result);
-    if (!data.ok && data.error) lines.push("", data.error);
-    showTestResult(lines.join("\n"));
-    setMcpMessage(
-      data.ok ? t("Connected. Tools: {tools}", { tools: (data.tools || []).join(", ") || "—" }) : data.error || t("Could not test the MCP server."),
-      Boolean(data.ok),
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : t("Could not test the MCP server.");
-    showTestResult(message);
-    setMcpMessage(message);
-  } finally {
-    if (button) button.disabled = false;
-  }
-}
-
 async function loadMcpServers() {
   const list = $("#mcpList");
   if (!list) return;
   try {
-    mcpCache = await listMcpServers();
-    if (!mcpCache.length) {
+    const servers = await listMcpServers();
+    if (!servers.length) {
       list.innerHTML = `<p class="packs-hint">${escapeHtml(t("No MCP servers yet."))}</p>`;
       return;
     }
-    list.innerHTML = mcpCache
+    list.innerHTML = servers
       .map(
         (server) => `
       <div class="mcp-row" data-id="${escapeHtml(server.id)}">
         <div>
           <strong>${escapeHtml(server.name)}</strong>
-          <p class="admin-row-meta">${escapeHtml(server.description || t("No description yet."))}</p>
-          <p class="admin-row-meta">${escapeHtml(paramSummary(server) || t("No parameters."))}</p>
+          <p class="admin-row-meta">${escapeHtml(server.url)}${
+            server.botnoi_tool_name
+              ? ` · ${escapeHtml(server.botnoi_tool_name)}`
+              : ""
+          }</p>
         </div>
-        <div class="mcp-row-actions">
-          <button type="button" class="text-button mcp-edit" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Edit"))}</button>
-          <button type="button" class="text-button mcp-remove" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Remove"))}</button>
-        </div>
+        <button type="button" class="text-button mcp-remove" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Remove"))}</button>
       </div>`,
       )
       .join("");
   } catch (err) {
     list.innerHTML = `<p class="packs-hint">${escapeHtml(err instanceof Error ? err.message : t("Could not load MCP servers."))}</p>`;
   }
-}
-
-function clearMcpForm() {
-  const form = $("#mcpForm");
-  if (!form) return;
-  delete form.dataset.editId;
-  $("#mcpName").value = "";
-  $("#mcpUrl").value = "";
-  $("#mcpAuthValue").value = "";
-  $("#mcpDescription").value = "";
-  setParamMode("form", { type: "object", properties: {}, required: [] });
-  $("#mcpCancelEdit").hidden = true;
-  const panel = $("#mcpTestPanel");
-  if (panel) panel.hidden = true;
-  const samples = $("#mcpTestSamples");
-  if (samples) samples.innerHTML = "";
-  showTestResult("");
-  localizeText($("#mcpAddBtn").querySelector("span"), "Add MCP");
-}
-
-function fillMcpForm(server) {
-  const form = $("#mcpForm");
-  form.dataset.editId = server.id;
-  $("#mcpName").value = server.name || "";
-  $("#mcpUrl").value = server.url || "";
-  $("#mcpAuthValue").value = "";
-  $("#mcpDescription").value = server.description || "";
-  const schema =
-    server.parameters && typeof server.parameters === "object"
-      ? server.parameters
-      : { type: "object", properties: {}, required: [] };
-  setParamMode(schemaIsFormFriendly(schema) ? "form" : "json", schema);
-  $("#mcpCancelEdit").hidden = false;
-  localizeText($("#mcpAddBtn").querySelector("span"), "Save");
-  $("#mcpSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  $("#mcpDescription")?.focus({ preventScroll: true });
 }
 
 function bindMcpForm() {
@@ -1121,44 +856,23 @@ function bindMcpForm() {
     const name = $("#mcpName").value.trim();
     const url = $("#mcpUrl").value.trim();
     const authValue = $("#mcpAuthValue").value.trim();
-    const description = $("#mcpDescription").value.trim();
     if (!name || !url) {
       setMcpMessage(t("Name and URL are required."));
       return;
     }
-    if (!description) {
-      setMcpMessage(t("A description is required so the pet knows what this tool does."));
-      return;
-    }
-    let parameters;
-    try {
-      parameters = collectParameters();
-    } catch (err) {
-      setMcpMessage(err instanceof Error ? err.message : t("Parameters must be JSON."));
-      return;
-    }
-    const editing = form.dataset.editId || "";
     const button = $("#mcpAddBtn");
     button.disabled = true;
     try {
-      const input = {
+      await createMcpServer({
         name,
         url,
-        description,
-        parameters,
-        parameterHint: "",
-        ...(authValue
-          ? { authValue, authHeader: "Authorization" }
-          : {}),
-      };
-      if (editing) {
-        await updateMcpServer({ ...input, id: editing });
-        setMcpMessage(t("MCP server updated."), true);
-      } else {
-        await createMcpServer(input);
-        setMcpMessage(t("MCP server connected."), true);
-      }
-      clearMcpForm();
+        authValue: authValue || undefined,
+        authHeader: authValue ? "Authorization" : undefined,
+      });
+      $("#mcpName").value = "";
+      $("#mcpUrl").value = "";
+      $("#mcpAuthValue").value = "";
+      setMcpMessage(t("MCP server connected."), true);
       await loadMcpServers();
     } catch (err) {
       setMcpMessage(err instanceof Error ? err.message : t("Could not add MCP server."));
@@ -1166,63 +880,7 @@ function bindMcpForm() {
       button.disabled = false;
     }
   });
-  $("#mcpCancelEdit")?.addEventListener("click", () => {
-    clearMcpForm();
-    setMcpMessage(null);
-  });
-  $("#mcpTestBtn")?.addEventListener("click", () => {
-    void runMcpFormTest();
-  });
-  $("#mcpAddParam")?.addEventListener("click", () => {
-    renderParamRows([...readParamRows(), { name: "", type: "string", required: true, description: "" }]);
-  });
-  $("#mcpParamRows")?.addEventListener("click", (event) => {
-    const button = event.target.closest(".mcp-param-remove");
-    if (!button) return;
-    const rows = readParamRows();
-    const index = [...document.querySelectorAll("#mcpParamRows .mcp-param-row")].indexOf(
-      button.closest(".mcp-param-row"),
-    );
-    if (index >= 0) rows.splice(index, 1);
-    renderParamRows(rows);
-  });
-  document.querySelector(".mcp-param-mode")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-param-mode]");
-    if (!button || button.getAttribute("aria-pressed") === "true") return;
-    if (button.dataset.paramMode === "json") {
-      try {
-        setParamMode("json", collectParameters());
-        setMcpMessage(null);
-      } catch (err) {
-        setMcpMessage(err instanceof Error ? err.message : t("Parameters must be JSON."));
-      }
-      return;
-    }
-    const text = $("#mcpParameters")?.value.trim() || "";
-    let schema = { type: "object", properties: {}, required: [] };
-    if (text) {
-      try {
-        schema = JSON.parse(text);
-      } catch {
-        setMcpMessage(t("Parameters must be JSON."));
-        return;
-      }
-    }
-    if (!schemaIsFormFriendly(schema)) {
-      setMcpMessage(t("This JSON is too detailed for the form."));
-      return;
-    }
-    setMcpMessage(null);
-    setParamMode("form", schema);
-  });
-  renderParamRows([]);
   $("#mcpList")?.addEventListener("click", async (event) => {
-    const edit = event.target.closest(".mcp-edit");
-    if (edit) {
-      const server = mcpCache.find((item) => item.id === edit.dataset.id);
-      if (server) fillMcpForm(server);
-      return;
-    }
     const button = event.target.closest(".mcp-remove");
     if (!button) return;
     const id = button.dataset.id;
@@ -1230,7 +888,6 @@ function bindMcpForm() {
     button.disabled = true;
     try {
       await deleteMcpServer(id);
-      if ($("#mcpForm")?.dataset.editId === id) clearMcpForm();
       setMcpMessage(t("MCP server removed."), true);
       await loadMcpServers();
     } catch (err) {
@@ -1448,18 +1105,6 @@ const PROVIDER_COPY = {
     placeholder: "AIza…",
     envVar: "GEMINI_API_KEY",
   },
-  botnoi: {
-    name: "Botnoi",
-    blurb: "Console session token. Creates a new voice agent for each pet and registers that pet’s MCP tools.",
-    placeholder: "Bearer token",
-    envVar: "BOTNOI_VOICE_TOKEN",
-  },
-  botnoi_call: {
-    name: "Botnoi call",
-    blurb: "Connector key for the live call. This is not the console token. The browser uses it to open preview_call, the same way Talking Jelly does.",
-    placeholder: "Connector api key",
-    envVar: "BOTNOI_CONNECTOR_KEY",
-  },
 };
 
 let keyStatuses = {};
@@ -1523,8 +1168,7 @@ function bindAdminKeys() {
     event.preventDefault();
     const provider = form.closest(".key-card")?.dataset.provider;
     const key = form.elements.key.value.trim();
-    const min = provider === "botnoi" || provider === "botnoi_call" ? 8 : 10;
-    if (key.length < min) return setAdminMessage("error", "Paste the whole key.");
+    if (key.length < 10) return setAdminMessage("error", "Paste the whole key.");
     const button = form.querySelector("button[type=submit]");
     button.disabled = true;
     button.textContent = "Checking…";

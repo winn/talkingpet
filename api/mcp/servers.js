@@ -1,21 +1,12 @@
 import { json, jsonError, readJson } from "../../server/http.js";
 import {
+  botnoiConfigured,
   createTool,
   deleteTool,
   mcpToolPayload,
-  resolveBotnoiToken,
   updateTool,
 } from "../../server/botnoi.js";
-import { adminClient, userClient, userFromRequest } from "../../server/supabase.js";
-import { normalizeParameters } from "../../server/mcp.js";
-
-const PUBLIC_COLUMNS =
-  "id, name, description, parameters, parameter_hint, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at";
-
-/** Service role when present; otherwise the caller's JWT (RLS). */
-function dbFor(request) {
-  return adminClient() ?? userClient(request);
-}
+import { adminClient, userFromRequest } from "../../server/supabase.js";
 
 /**
  * User-facing MCP connections for their pets.
@@ -28,11 +19,13 @@ function dbFor(request) {
 export async function GET(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const db = dbFor(request);
-  if (!db) return jsonError("not_configured", "Server is not configured.", 500);
-  const { data, error } = await db
+  const admin = adminClient();
+  if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
+  const { data, error } = await admin
     .from("mcp_servers")
-    .select(PUBLIC_COLUMNS)
+    .select(
+      "id, name, description, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at",
+    )
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
   if (error) return jsonError("db", error.message, 500);
@@ -42,8 +35,14 @@ export async function GET(request) {
 export async function POST(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const db = dbFor(request);
-  if (!db) return jsonError("not_configured", "Server is not configured.", 500);
+  const admin = adminClient();
+  if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
+  if (!botnoiConfigured())
+    return jsonError(
+      "missing_botnoi_token",
+      "Set BOTNOI_VOICE_TOKEN on the server first.",
+      400,
+    );
 
   const body = await readJson(request);
   const name = sanitizeName(body.name);
@@ -51,59 +50,48 @@ export async function POST(request) {
   if (!name || !url)
     return jsonError("bad_request", "name and url are required.", 400);
   const description = String(body.description || "").trim().slice(0, 500);
-  if (!description)
-    return jsonError("bad_request", "A description is required so the pet knows what this tool does.", 400);
-  const parameters = readParameters(body.parameters);
-  if (parameters.error) return jsonError("bad_parameters", parameters.error, 400);
-  const parameterHint = readHint(body.parameterHint ?? body.parameter_hint);
   const authHeader = String(body.authHeader || body.auth_header || "").trim() || null;
   const authValue = String(body.authValue || body.auth_value || body.api_key || "").trim() || null;
   const toolName = botnoiToolName(user.id, name);
-  const token = await resolveBotnoiToken(db);
 
   let botnoiToolId = null;
-  if (token) {
-    try {
-      const created = await createTool(
-        mcpToolPayload({
-          name: toolName,
-          description,
-          url,
-          authHeader,
-          authValue,
-          parameters,
-          parameterHint,
-        }),
-        { token },
-      );
-      botnoiToolId = extractToolId(created);
-    } catch (err) {
-      return botnoiError(err);
-    }
+  try {
+    const created = await createTool(
+      mcpToolPayload({
+        name: toolName,
+        description,
+        url,
+        authHeader,
+        authValue,
+      }),
+    );
+    botnoiToolId = extractToolId(created);
+  } catch (err) {
+    return botnoiError(err);
   }
 
-  const { data, error } = await db
+  const { data, error } = await admin
     .from("mcp_servers")
     .insert({
       user_id: user.id,
       name,
       description,
-      parameters,
-      parameter_hint: parameterHint,
       url,
       auth_header: authHeader,
       auth_value: authValue,
       botnoi_tool_id: botnoiToolId,
-      botnoi_tool_name: botnoiToolId ? toolName : null,
+      botnoi_tool_name: toolName,
       status: "active",
       updated_at: new Date().toISOString(),
     })
-    .select(PUBLIC_COLUMNS)
+    .select(
+      "id, name, description, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at",
+    )
     .single();
   if (error) {
     if (botnoiToolId) {
       try {
-        await deleteTool(botnoiToolId, { token });
+        await deleteTool(botnoiToolId);
       } catch {}
     }
     return jsonError("db", error.message, 500);
@@ -114,14 +102,20 @@ export async function POST(request) {
 export async function PUT(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const db = dbFor(request);
-  if (!db) return jsonError("not_configured", "Server is not configured.", 500);
+  const admin = adminClient();
+  if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
+  if (!botnoiConfigured())
+    return jsonError(
+      "missing_botnoi_token",
+      "Set BOTNOI_VOICE_TOKEN on the server first.",
+      400,
+    );
 
   const body = await readJson(request);
   const id = String(body.id || "").trim();
   if (!id) return jsonError("bad_request", "id is required.", 400);
 
-  const { data: existing, error: readError } = await db
+  const { data: existing, error: readError } = await admin
     .from("mcp_servers")
     .select("*")
     .eq("id", id)
@@ -136,16 +130,6 @@ export async function PUT(request) {
     body.description != null
       ? String(body.description).trim().slice(0, 500)
       : existing.description;
-  if (!description)
-    return jsonError("bad_request", "A description is required so the pet knows what this tool does.", 400);
-  const parsedParameters =
-    body.parameters == null ? null : readParameters(body.parameters);
-  if (parsedParameters?.error) return jsonError("bad_parameters", parsedParameters.error, 400);
-  const parameters = parsedParameters || existing.parameters;
-  const parameterHint =
-    body.parameterHint != null || body.parameter_hint != null
-      ? readHint(body.parameterHint ?? body.parameter_hint)
-      : existing.parameter_hint || "";
   const authHeader =
     body.authHeader != null || body.auth_header != null
       ? String(body.authHeader || body.auth_header || "").trim() || null
@@ -163,45 +147,40 @@ export async function PUT(request) {
     authHeader,
     authValue,
     status,
-    parameters,
-    parameterHint,
   });
-  const token = await resolveBotnoiToken(db);
 
-  if (token) {
-    try {
-      if (existing.botnoi_tool_id) {
-        await updateTool(existing.botnoi_tool_id, {
-          ...payload,
-          status,
-        }, { token });
-      } else {
-        const created = await createTool(payload, { token });
-        existing.botnoi_tool_id = extractToolId(created);
-      }
-    } catch (err) {
-      return botnoiError(err);
+  try {
+    if (existing.botnoi_tool_id) {
+      await updateTool(existing.botnoi_tool_id, {
+        ...payload,
+        status,
+      });
+    } else {
+      const created = await createTool(payload);
+      existing.botnoi_tool_id = extractToolId(created);
     }
+  } catch (err) {
+    return botnoiError(err);
   }
 
-  const { data, error } = await db
+  const { data, error } = await admin
     .from("mcp_servers")
     .update({
       name,
       description,
-      parameters,
-      parameter_hint: parameterHint,
       url,
       auth_header: authHeader,
       auth_value: authValue,
       botnoi_tool_id: existing.botnoi_tool_id,
-      botnoi_tool_name: existing.botnoi_tool_id ? toolName : null,
+      botnoi_tool_name: toolName,
       status,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
     .eq("user_id", user.id)
-    .select(PUBLIC_COLUMNS)
+    .select(
+      "id, name, description, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at",
+    )
     .single();
   if (error) return jsonError("db", error.message, 500);
   return json({ server: data });
@@ -210,12 +189,12 @@ export async function PUT(request) {
 export async function DELETE(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const db = dbFor(request);
-  if (!db) return jsonError("not_configured", "Server is not configured.", 500);
+  const admin = adminClient();
+  if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
   const id = new URL(request.url).searchParams.get("id") || "";
   if (!id.trim()) return jsonError("bad_request", "id is required.", 400);
 
-  const { data: existing, error: readError } = await db
+  const { data: existing, error: readError } = await admin
     .from("mcp_servers")
     .select("id, botnoi_tool_id")
     .eq("id", id.trim())
@@ -224,33 +203,18 @@ export async function DELETE(request) {
   if (readError) return jsonError("db", readError.message, 500);
   if (!existing) return jsonError("not_found", "MCP server not found.", 404);
 
-  if (existing.botnoi_tool_id) {
-    const token = await resolveBotnoiToken(db);
-    if (token) {
-      try {
-        await deleteTool(existing.botnoi_tool_id, { token });
-      } catch {}
-    }
+  if (existing.botnoi_tool_id && botnoiConfigured()) {
+    try {
+      await deleteTool(existing.botnoi_tool_id);
+    } catch {}
   }
-  const { error } = await db
+  const { error } = await admin
     .from("mcp_servers")
     .delete()
     .eq("id", existing.id)
     .eq("user_id", user.id);
   if (error) return jsonError("db", error.message, 500);
   return json({ ok: true });
-}
-
-function readHint(value) {
-  return String(value || "").trim().slice(0, 500);
-}
-
-function readParameters(value) {
-  try {
-    return normalizeParameters(value);
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Parameters must be JSON." };
-  }
 }
 
 function sanitizeName(value) {
