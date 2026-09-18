@@ -84,6 +84,7 @@ import {
   applyTalkSceneBackdrop,
 } from "./backgrounds.js";
 import { ensurePetVoiceAgent } from "./botnoi-client.js";
+import { openPetMcp } from "./pet-mcp.js";
 
 // Prevent mobile browser page zoom while preserving canvas pinch gestures
 initPreventPageZoom();
@@ -679,7 +680,7 @@ function renderPetGrid(pets) {
       const config = getPetConfig(pet.petType, petGender(pet));
       const card = document.createElement("article");
       card.className = "pet-card";
-      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
+      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="pet-mcp-btn secondary">${t("MCP tools")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
       applyBackdrop(
         card.querySelector(".pet-preview"),
         normalizeBackground(pet.backgroundColor),
@@ -712,6 +713,14 @@ function renderPetGrid(pets) {
       card
         .querySelector(".edit-prompt-btn")
         .addEventListener("click", () => openPromptOnly(pet));
+      card.querySelector(".pet-mcp-btn").addEventListener("click", () => {
+        openPetMcp(pet, {
+          onSaved(saved) {
+            Object.assign(pet, saved);
+            lastPets = lastPets.map((item) => (item.id === saved.id ? pet : item));
+          },
+        });
+      });
       card
         .querySelector(".talk-btn")
         .addEventListener("click", () =>

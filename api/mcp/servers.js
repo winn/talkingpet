@@ -7,9 +7,10 @@ import {
   updateTool,
 } from "../../server/botnoi.js";
 import { adminClient, userClient, userFromRequest } from "../../server/supabase.js";
+import { normalizeParameters } from "../../server/mcp.js";
 
 const PUBLIC_COLUMNS =
-  "id, name, description, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at";
+  "id, name, description, parameters, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at";
 
 /** Service role when present; otherwise the caller's JWT (RLS). */
 function dbFor(request) {
@@ -50,6 +51,10 @@ export async function POST(request) {
   if (!name || !url)
     return jsonError("bad_request", "name and url are required.", 400);
   const description = String(body.description || "").trim().slice(0, 500);
+  if (!description)
+    return jsonError("bad_request", "A description is required so the pet knows what this tool does.", 400);
+  const parameters = readParameters(body.parameters);
+  if (parameters.error) return jsonError("bad_parameters", parameters.error, 400);
   const authHeader = String(body.authHeader || body.auth_header || "").trim() || null;
   const authValue = String(body.authValue || body.auth_value || body.api_key || "").trim() || null;
   const toolName = botnoiToolName(user.id, name);
@@ -64,6 +69,7 @@ export async function POST(request) {
           url,
           authHeader,
           authValue,
+          parameters,
         }),
       );
       botnoiToolId = extractToolId(created);
@@ -78,6 +84,7 @@ export async function POST(request) {
       user_id: user.id,
       name,
       description,
+      parameters,
       url,
       auth_header: authHeader,
       auth_value: authValue,
@@ -86,9 +93,7 @@ export async function POST(request) {
       status: "active",
       updated_at: new Date().toISOString(),
     })
-    .select(
-      "id, name, description, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at",
-    )
+    .select(PUBLIC_COLUMNS)
     .single();
   if (error) {
     if (botnoiToolId) {
@@ -126,6 +131,12 @@ export async function PUT(request) {
     body.description != null
       ? String(body.description).trim().slice(0, 500)
       : existing.description;
+  if (!description)
+    return jsonError("bad_request", "A description is required so the pet knows what this tool does.", 400);
+  const parsedParameters =
+    body.parameters == null ? null : readParameters(body.parameters);
+  if (parsedParameters?.error) return jsonError("bad_parameters", parsedParameters.error, 400);
+  const parameters = parsedParameters || existing.parameters;
   const authHeader =
     body.authHeader != null || body.auth_header != null
       ? String(body.authHeader || body.auth_header || "").trim() || null
@@ -143,6 +154,7 @@ export async function PUT(request) {
     authHeader,
     authValue,
     status,
+    parameters,
   });
 
   if (botnoiConfigured()) {
@@ -166,6 +178,7 @@ export async function PUT(request) {
     .update({
       name,
       description,
+      parameters,
       url,
       auth_header: authHeader,
       auth_value: authValue,
@@ -176,9 +189,7 @@ export async function PUT(request) {
     })
     .eq("id", id)
     .eq("user_id", user.id)
-    .select(
-      "id, name, description, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at",
-    )
+    .select(PUBLIC_COLUMNS)
     .single();
   if (error) return jsonError("db", error.message, 500);
   return json({ server: data });
@@ -213,6 +224,14 @@ export async function DELETE(request) {
     .eq("user_id", user.id);
   if (error) return jsonError("db", error.message, 500);
   return json({ ok: true });
+}
+
+function readParameters(value) {
+  try {
+    return normalizeParameters(value);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Parameters must be JSON." };
+  }
 }
 
 function sanitizeName(value) {

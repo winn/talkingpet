@@ -299,8 +299,29 @@ export const TH = {
   "MCP tools": "เครื่องมือ MCP",
   "Add an MCP server here. It will be attached the next time you talk to a pet.":
     "เพิ่มเซิร์ฟเวอร์ MCP ที่นี่ จะถูกผูกตอนคุยกับสัตว์เลี้ยงครั้งถัดไป",
-  "Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created.":
-    "เชื่อมต่อเซิร์ฟเวอร์ MCP เพื่อให้สัตว์เลี้ยงใช้เครื่องมือได้ตอนคุย แต่ละการเชื่อมต่อจะลงทะเบียนเป็นเครื่องมือ Botnoi และผูกตอนสร้าง agent ของสัตว์เลี้ยง",
+  "Describe what the tool does and the parameters the pet must fill in. On each pet, choose which tools it may use and when.":
+    "เขียนว่าเครื่องมือนี้ทำอะไร และพารามิเตอร์ที่ต้องส่ง แล้วที่สัตว์เลี้ยงแต่ละตัว เลือกเครื่องมือที่จะใช้และตอนที่ควรเรียก",
+  "What this tool does, so the pet knows how to use it":
+    "เครื่องมือนี้ทำอะไร เพื่อให้สัตว์เลี้ยงรู้ว่าจะใช้ยังไง",
+  "Parameters are JSON the model fills in before calling the tool. Leave blank if the tool needs nothing.":
+    "พารามิเตอร์เป็น JSON ที่โมเดลต้องเติมก่อนเรียกเครื่องมือ เว้นว่างได้ถ้าไม่ต้องส่งอะไร",
+  "A description is required so the pet knows what this tool does.":
+    "ต้องเขียนคำอธิบาย เพื่อให้สัตว์เลี้ยงรู้ว่าเครื่องมือนี้ทำอะไร",
+  "Parameters must be JSON.": "พารามิเตอร์ต้องเป็น JSON",
+  "MCP server updated.": "อัปเดต MCP แล้ว",
+  "No description yet.": "ยังไม่มีคำอธิบาย",
+  "No parameters.": "ไม่มีพารามิเตอร์",
+  "Tools for": "เครื่องมือของ",
+  "Check the tools this pet may use, and say when it should call each one.":
+    "เลือกเครื่องมือที่ตัวนี้ใช้ได้ และบอกว่าควรเรียกตอนไหน",
+  "When should this pet call it?": "ควรเรียกตอนไหน?",
+  "Say when {name} should call this tool.": "บอกด้วยว่า {name} ควรเรียกเครื่องมือนี้ตอนไหน",
+  "No MCP servers yet. Add one in your account first.":
+    "ยังไม่มีเซิร์ฟเวอร์ MCP เพิ่มในบัญชีก่อน",
+  "Could not save.": "บันทึกไม่ได้",
+  Save: "บันทึก",
+  Edit: "แก้ไข",
+  "Loading…": "กำลังโหลด…",
   "Add MCP": "เพิ่ม MCP",
   "Optional API key": "API key (ถ้ามี)",
   "No MCP servers yet.": "ยังไม่มีเซิร์ฟเวอร์ MCP",

@@ -1376,10 +1376,9 @@
           <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
           <p class="memory-hint">
             <span
-              data-i18n="Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created."
-              >Connect MCP servers so your pets can use their tools while
-              talking. Each connection is registered as a Botnoi tool and
-              attached when a pet agent is created.</span
+              data-i18n="Describe what the tool does and the parameters the pet must fill in. On each pet, choose which tools it may use and when."
+              >Describe what the tool does and the parameters the pet must fill
+              in. On each pet, choose which tools it may use and when.</span
             >
           </p>
           <form id="mcpForm" class="mcp-form">
@@ -1407,9 +1406,37 @@
               aria-label="Optional API key"
               data-i18n-placeholder="Optional API key"
             />
-            <button id="mcpAddBtn" type="submit" class="secondary">
-              <span data-i18n="Add MCP">Add MCP</span>
-            </button>
+            <textarea
+              id="mcpDescription"
+              required
+              maxlength="500"
+              rows="3"
+              placeholder="What this tool does, so the pet knows how to use it"
+              aria-label="What this tool does"
+              data-i18n-placeholder="What this tool does, so the pet knows how to use it"
+            ></textarea>
+            <textarea
+              id="mcpParameters"
+              rows="5"
+              spellcheck="false"
+              placeholder='{"type":"object","properties":{"city":{"type":"string","description":"City name"}},"required":["city"]}'
+              aria-label="Parameters"
+            ></textarea>
+            <p class="memory-hint">
+              <span
+                data-i18n="Parameters are JSON the model fills in before calling the tool. Leave blank if the tool needs nothing."
+                >Parameters are JSON the model fills in before calling the tool.
+                Leave blank if the tool needs nothing.</span
+              >
+            </p>
+            <div class="mcp-form-actions">
+              <button id="mcpAddBtn" type="submit" class="secondary">
+                <span data-i18n="Add MCP">Add MCP</span>
+              </button>
+              <button id="mcpCancelEdit" type="button" class="text-button" hidden>
+                <span data-i18n="Cancel">Cancel</span>
+              </button>
+            </div>
           </form>
           <p id="mcpMessage" class="coupon-message" role="status" hidden></p>
           <div id="mcpList" class="mcp-list"></div>
@@ -1593,6 +1620,37 @@
         <div class="dialog-actions memory-footer">
           <button id="forgetAllBtn" type="button" class="text-button" hidden>
             <span data-i18n="Forget everything">Forget everything</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      id="petMcpModal"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="petMcpTitle"
+    >
+      <div class="dialog-card pet-mcp-card">
+        <h2 id="petMcpTitle">
+          <span data-i18n="Tools for">Tools for</span>
+          <span id="petMcpName">Momo</span>
+        </h2>
+        <p>
+          <span
+            data-i18n="Check the tools this pet may use, and say when it should call each one."
+            >Check the tools this pet may use, and say when it should call each
+            one.</span
+          >
+        </p>
+        <div id="petMcpList" class="pet-mcp-list"></div>
+        <p id="petMcpMessage" class="coupon-message" role="status" hidden></p>
+        <div class="dialog-actions">
+          <button id="petMcpCancel" type="button" class="secondary">
+            <span data-i18n="Cancel">Cancel</span>
+          </button>
+          <button id="petMcpSave" type="button" class="primary">
+            <span data-i18n="Save">Save</span>
           </button>
         </div>
       </div>

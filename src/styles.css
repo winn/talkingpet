@@ -3979,12 +3979,75 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
   gap: 8px;
   margin-top: 10px;
 }
-.mcp-form input {
+.mcp-form input,
+.mcp-form textarea {
   min-height: 44px;
   border: 1.5px solid #e3cdb5;
   background: #fffefb;
   border-radius: 12px;
   padding: 0 12px;
+  font: inherit;
+}
+.mcp-form textarea {
+  min-height: 72px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+.mcp-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mcp-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pet-actions .pet-mcp-btn {
+  grid-column: 1 / -1;
+}
+.pet-mcp-card {
+  text-align: left;
+  width: min(520px, 100%);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+}
+.pet-mcp-card h2,
+.pet-mcp-list {
+  text-align: left;
+}
+.pet-mcp-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.pet-mcp-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1.5px solid #e3cdb5;
+  border-radius: 14px;
+  background: #fffefb;
+}
+.pet-mcp-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.pet-mcp-check small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+.pet-mcp-when {
+  min-height: 44px;
+  border: 1.5px solid #e3cdb5;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0 12px;
+}
+.pet-mcp-when:disabled {
+  opacity: 0.55;
 }
 .mcp-list {
   margin-top: 12px;

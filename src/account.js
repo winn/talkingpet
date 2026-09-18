@@ -3,6 +3,7 @@ import {
   createMcpServer,
   deleteMcpServer,
   listMcpServers,
+  updateMcpServer,
 } from "./botnoi-client.js";
 import {
   AI_PROVIDERS,
@@ -810,6 +811,8 @@ function bindCouponForm() {
   });
 }
 
+let mcpCache = [];
+
 function setMcpMessage(message, success = false) {
   const box = $("#mcpMessage");
   if (!box) return;
@@ -822,30 +825,70 @@ async function loadMcpServers() {
   const list = $("#mcpList");
   if (!list) return;
   try {
-    const servers = await listMcpServers();
-    if (!servers.length) {
+    mcpCache = await listMcpServers();
+    if (!mcpCache.length) {
       list.innerHTML = `<p class="packs-hint">${escapeHtml(t("No MCP servers yet."))}</p>`;
       return;
     }
-    list.innerHTML = servers
-      .map(
-        (server) => `
+    list.innerHTML = mcpCache
+      .map((server) => {
+        const params = summarizeClientParameters(server.parameters);
+        return `
       <div class="mcp-row" data-id="${escapeHtml(server.id)}">
         <div>
           <strong>${escapeHtml(server.name)}</strong>
-          <p class="admin-row-meta">${escapeHtml(server.url)}${
-            server.botnoi_tool_name
-              ? ` · ${escapeHtml(server.botnoi_tool_name)}`
-              : ""
-          }</p>
+          <p class="admin-row-meta">${escapeHtml(server.description || t("No description yet."))}</p>
+          <p class="admin-row-meta">${escapeHtml(params || t("No parameters."))}</p>
         </div>
-        <button type="button" class="text-button mcp-remove" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Remove"))}</button>
-      </div>`,
-      )
+        <div class="mcp-row-actions">
+          <button type="button" class="text-button mcp-edit" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Edit"))}</button>
+          <button type="button" class="text-button mcp-remove" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Remove"))}</button>
+        </div>
+      </div>`;
+      })
       .join("");
   } catch (err) {
     list.innerHTML = `<p class="packs-hint">${escapeHtml(err instanceof Error ? err.message : t("Could not load MCP servers."))}</p>`;
   }
+}
+
+function summarizeClientParameters(parameters) {
+  const props = parameters?.properties;
+  if (!props || typeof props !== "object") return "";
+  const required = new Set(parameters.required || []);
+  return Object.entries(props)
+    .map(([name, spec]) => `${name}${required.has(name) ? "*" : ""}`)
+    .join(", ");
+}
+
+function clearMcpForm() {
+  const form = $("#mcpForm");
+  if (!form) return;
+  delete form.dataset.editId;
+  $("#mcpName").value = "";
+  $("#mcpUrl").value = "";
+  $("#mcpAuthValue").value = "";
+  $("#mcpDescription").value = "";
+  $("#mcpParameters").value = "";
+  $("#mcpCancelEdit").hidden = true;
+  localizeText($("#mcpAddBtn").querySelector("span"), "Add MCP");
+}
+
+function fillMcpForm(server) {
+  const form = $("#mcpForm");
+  form.dataset.editId = server.id;
+  $("#mcpName").value = server.name || "";
+  $("#mcpUrl").value = server.url || "";
+  $("#mcpAuthValue").value = "";
+  $("#mcpDescription").value = server.description || "";
+  const params = server.parameters;
+  const empty =
+    !params?.properties || Object.keys(params.properties).length === 0;
+  $("#mcpParameters").value = empty ? "" : JSON.stringify(params, null, 2);
+  $("#mcpCancelEdit").hidden = false;
+  localizeText($("#mcpAddBtn").querySelector("span"), "Save");
+  $("#mcpSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  $("#mcpDescription")?.focus({ preventScroll: true });
 }
 
 function bindMcpForm() {
@@ -856,23 +899,46 @@ function bindMcpForm() {
     const name = $("#mcpName").value.trim();
     const url = $("#mcpUrl").value.trim();
     const authValue = $("#mcpAuthValue").value.trim();
+    const description = $("#mcpDescription").value.trim();
+    const parametersText = $("#mcpParameters").value.trim();
     if (!name || !url) {
       setMcpMessage(t("Name and URL are required."));
       return;
     }
+    if (!description) {
+      setMcpMessage(t("A description is required so the pet knows what this tool does."));
+      return;
+    }
+    let parameters = "";
+    if (parametersText) {
+      try {
+        parameters = JSON.parse(parametersText);
+      } catch {
+        setMcpMessage(t("Parameters must be JSON."));
+        return;
+      }
+    }
+    const editing = form.dataset.editId || "";
     const button = $("#mcpAddBtn");
     button.disabled = true;
     try {
-      await createMcpServer({
+      const input = {
         name,
         url,
-        authValue: authValue || undefined,
-        authHeader: authValue ? "Authorization" : undefined,
-      });
-      $("#mcpName").value = "";
-      $("#mcpUrl").value = "";
-      $("#mcpAuthValue").value = "";
-      setMcpMessage(t("MCP server connected."), true);
+        description,
+        parameters,
+        ...(authValue
+          ? { authValue, authHeader: "Authorization" }
+          : {}),
+      };
+      if (editing) {
+        await updateMcpServer({ ...input, id: editing });
+        setMcpMessage(t("MCP server updated."), true);
+      } else {
+        await createMcpServer(input);
+        setMcpMessage(t("MCP server connected."), true);
+      }
+      clearMcpForm();
       await loadMcpServers();
     } catch (err) {
       setMcpMessage(err instanceof Error ? err.message : t("Could not add MCP server."));
@@ -880,7 +946,17 @@ function bindMcpForm() {
       button.disabled = false;
     }
   });
+  $("#mcpCancelEdit")?.addEventListener("click", () => {
+    clearMcpForm();
+    setMcpMessage(null);
+  });
   $("#mcpList")?.addEventListener("click", async (event) => {
+    const edit = event.target.closest(".mcp-edit");
+    if (edit) {
+      const server = mcpCache.find((item) => item.id === edit.dataset.id);
+      if (server) fillMcpForm(server);
+      return;
+    }
     const button = event.target.closest(".mcp-remove");
     if (!button) return;
     const id = button.dataset.id;
@@ -888,6 +964,7 @@ function bindMcpForm() {
     button.disabled = true;
     try {
       await deleteMcpServer(id);
+      if ($("#mcpForm")?.dataset.editId === id) clearMcpForm();
       setMcpMessage(t("MCP server removed."), true);
       await loadMcpServers();
     } catch (err) {

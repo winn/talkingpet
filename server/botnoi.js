@@ -122,15 +122,24 @@ export function mcpToolPayload({
   authHeader,
   authValue,
   status = "active",
+  parameters = { type: "object", properties: {}, required: [] },
 }) {
   const headers = {};
   if (authHeader && authValue) headers[authHeader] = authValue;
+  const schema =
+    parameters && typeof parameters === "object" && !Array.isArray(parameters)
+      ? parameters
+      : { type: "object", properties: {}, required: [] };
   return {
     name: String(name).trim().slice(0, 80),
     description: String(description || `MCP server ${url}`).slice(0, 500),
     tool_type: "mcp",
     status,
-    parameters: { type: "object", properties: {}, required: [] },
+    parameters: {
+      type: "object",
+      properties: schema.properties && typeof schema.properties === "object" ? schema.properties : {},
+      required: Array.isArray(schema.required) ? schema.required : [],
+    },
     execution: {
       method: "POST",
       endpoint: String(url).trim(),

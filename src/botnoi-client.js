@@ -37,6 +37,16 @@ export async function createMcpServer(input) {
   return data.server;
 }
 
+export async function updateMcpServer(input) {
+  const res = await fetch("/api/mcp/servers", {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(input),
+  });
+  const data = await readApi(res);
+  return data.server;
+}
+
 export async function deleteMcpServer(id) {
   const res = await fetch(`/api/mcp/servers?id=${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -62,6 +72,7 @@ export async function ensurePetVoiceAgent(pet, { personality = "", language = "e
         personality,
         language,
         agentId: pet.botnoiAgentId || null,
+        mcpLinks: Array.isArray(pet.mcpLinks) ? pet.mcpLinks : [],
       }),
     });
     if (res.status === 400) {

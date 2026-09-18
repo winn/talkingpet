@@ -5,14 +5,14 @@ import {
   createOrUpdateAgent,
 } from "../../server/botnoi.js";
 import { adminClient, userClient, userFromRequest } from "../../server/supabase.js";
-import { activeToolNamesForUser } from "../../server/mcp.js";
+import { mcpPromptAppendix, toolsForPet } from "../../server/mcp.js";
 
 /**
  * PUT /api/botnoi/pet-agent
- * { petId, petName, personality?, language? }
+ * { petId, petName, personality?, language?, mcpLinks?: [{ serverId, when }] }
  *
- * Creates or updates a Botnoi Voice agent for this pet, attaching every active
- * MCP tool the signed-in user has registered. Returns { agentId, botName, toolNames }.
+ * Creates or updates a Botnoi Voice agent for this pet, attaching only the
+ * MCP tools the pet checked. The "when" text is added to the system prompt.
  * The client should store agentId on the pet and pass it as ChatWidget widgetId.
  */
 export async function PUT(request) {
@@ -35,13 +35,16 @@ export async function PUT(request) {
   const language = body.language === "th" ? "th" : "en";
   const personality = String(body.personality || body.greeting || "").trim();
   const existingAgentId = String(body.agentId || body.agent_id || "").trim() || null;
-  const toolNames = await activeToolNamesForUser(db, user.id);
+  const links = body.mcpLinks || body.mcp_links || [];
+  const tools = await toolsForPet(db, user.id, links);
+  const toolNames = tools.map((tool) => tool.botnoi_tool_name).filter(Boolean);
+  const prompt = `${personality}${mcpPromptAppendix(tools)}`.slice(0, 8000);
   const botName = `tm_${String(user.id).replace(/-/g, "").slice(0, 8)}_${petId.slice(0, 12)}`;
 
   const agentData = agentDataWithTools(
     {
       language,
-      system_prompt: personality.slice(0, 4000),
+      system_prompt: prompt,
       greeting_instruction: personality.slice(0, 4000),
       pet_name: petName.slice(0, 60),
       talking_momo_pet_id: petId,
