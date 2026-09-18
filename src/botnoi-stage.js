@@ -2,11 +2,61 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 
+const VISEMES = ["aa", "ih", "ou", "ee", "oh"];
+
 let handle = null;
 
 export function stopPetStage() {
   handle?.stop();
   handle = null;
+}
+
+export function setPetSpeaking(speaking) {
+  handle?.setSpeaking(Boolean(speaking));
+}
+
+function bone(vrm, name) {
+  return vrm.humanoid?.getNormalizedBoneNode?.(name) || null;
+}
+
+function rememberBase(node, key, value) {
+  if (node.userData[key] == null) node.userData[key] = value;
+  return node.userData[key];
+}
+
+/** Blink, sway, and move the mouth. The paint VRM has expressions but no clip. */
+function posePet(vrm, time, speaking, lookTarget) {
+  const expr = vrm.expressionManager;
+  if (expr) {
+    const blinkWindow = time % 4.2;
+    const blink = blinkWindow > 3.95 && blinkWindow < 4.12 ? 1 : 0;
+    expr.setValue("blink", blink);
+    const active = speaking ? VISEMES[Math.floor(time * 8) % VISEMES.length] : null;
+    for (const name of VISEMES) expr.setValue(name, name === active ? 1 : 0);
+  }
+
+  const hips = bone(vrm, "hips");
+  const head = bone(vrm, "head");
+  const bob = Math.sin(time * 1.7) * 0.015;
+  const sway = Math.sin(time * 0.85) * 0.06;
+  if (hips) {
+    const baseY = rememberBase(hips, "restY", hips.position.y);
+    const baseZ = rememberBase(hips, "restZ", hips.rotation.z);
+    hips.position.y = baseY + bob;
+    hips.rotation.z = baseZ + sway;
+  } else {
+    vrm.scene.rotation.z = sway * 0.35;
+  }
+  if (head) {
+    const baseX = rememberBase(head, "restX", head.rotation.x);
+    const baseYaw = rememberBase(head, "restYaw", head.rotation.y);
+    head.rotation.x = baseX + Math.sin(time * 0.7) * 0.04;
+    head.rotation.y = baseYaw + Math.sin(time * 0.45) * (speaking ? 0.05 : 0.1);
+  }
+  if (vrm.lookAt && lookTarget) {
+    vrm.lookAt.target = lookTarget;
+    lookTarget.position.set(Math.sin(time * 0.4) * 0.18, 1.35 + Math.sin(time * 0.25) * 0.04, 0.9);
+  }
 }
 
 /** Show the painted pet while the Botnoi call handles the voice. */
@@ -32,10 +82,14 @@ export function startPetStage(container, vrmUrl) {
   const key = new THREE.DirectionalLight(0xffffff, 1.05);
   key.position.set(1, 2, 2);
   scene.add(key);
+  const lookTarget = new THREE.Object3D();
+  scene.add(lookTarget);
 
   let vrm = null;
   let frame = 0;
   let stopped = false;
+  let speaking = false;
+  let time = 0;
   const clock = new THREE.Clock();
   const resize = () => {
     const width = container.clientWidth || 320;
@@ -50,7 +104,12 @@ export function startPetStage(container, vrmUrl) {
   const loop = () => {
     if (stopped) return;
     frame = requestAnimationFrame(loop);
-    if (vrm) vrm.update(clock.getDelta());
+    const delta = clock.getDelta();
+    time += delta;
+    if (vrm) {
+      posePet(vrm, time, speaking, lookTarget);
+      vrm.update(delta);
+    }
     renderer.render(scene, camera);
   };
   loop();
@@ -77,6 +136,9 @@ export function startPetStage(container, vrmUrl) {
   }).catch(() => {});
 
   handle = {
+    setSpeaking(next) {
+      speaking = next;
+    },
     stop() {
       stopped = true;
       cancelAnimationFrame(frame);

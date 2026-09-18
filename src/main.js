@@ -85,7 +85,7 @@ import {
 } from "./backgrounds.js";
 import { ensurePetVoiceAgent } from "./botnoi-client.js";
 import { startBotnoiCall, stopBotnoiCall } from "./botnoi-call.js";
-import { startPetStage, stopPetStage } from "./botnoi-stage.js";
+import { startPetStage, stopPetStage, setPetSpeaking } from "./botnoi-stage.js";
 import { loadTalkMcpNote, mcpResultInstruction, usePetMcp } from "./mcp-talk.js";
 import { openPetMcp } from "./pet-mcp.js";
 
@@ -1206,6 +1206,7 @@ export async function launchPetChat(pet) {
         if (isChatLogOpen()) renderChatLog(currentTurns());
       },
       onAgentSpeaking: (speaking) => {
+        setPetSpeaking(speaking);
         if (speaking || !lastAgentLine || launchToken !== chatLaunchToken) return;
         pushCapturedTurn({ sender: "bot", text: lastAgentLine });
         lastAgentLine = "";
