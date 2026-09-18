@@ -299,12 +299,14 @@ export const TH = {
   "MCP tools": "เครื่องมือ MCP",
   "Add an MCP server here. It will be attached the next time you talk to a pet.":
     "เพิ่มเซิร์ฟเวอร์ MCP ที่นี่ จะถูกผูกตอนคุยกับสัตว์เลี้ยงครั้งถัดไป",
-  "Describe what the tool does and the parameters the pet must fill in. On each pet, choose which tools it may use and when.":
-    "เขียนว่าเครื่องมือนี้ทำอะไร และพารามิเตอร์ที่ต้องส่ง แล้วที่สัตว์เลี้ยงแต่ละตัว เลือกเครื่องมือที่จะใช้และตอนที่ควรเรียก",
+  "Describe what the tool does, and in your own words what the pet should send. On each pet, choose which tools it may use and when.":
+    "เขียนว่าเครื่องมือนี้ทำอะไร และต้องส่งอะไรเป็นประโยคธรรมดา แล้วที่สัตว์เลี้ยงแต่ละตัว เลือกเครื่องมือที่จะใช้และตอนที่ควรเรียก",
   "What this tool does, so the pet knows how to use it":
     "เครื่องมือนี้ทำอะไร เพื่อให้สัตว์เลี้ยงรู้ว่าจะใช้ยังไง",
-  "Parameters are JSON the model fills in before calling the tool. Leave blank if the tool needs nothing.":
-    "พารามิเตอร์เป็น JSON ที่โมเดลต้องเติมก่อนเรียกเครื่องมือ เว้นว่างได้ถ้าไม่ต้องส่งอะไร",
+  "Write what the pet should send, in your own words. Leave blank if the tool needs nothing.":
+    "เขียนเองได้เลยว่าต้องส่งอะไร เช่น ชื่อจังหวัดกับวันที่ เว้นว่างได้ถ้าไม่ต้องส่งอะไร",
+  "Must send the province name and the date to check":
+    "ต้องส่งชื่อจังหวัด กับวันที่ ที่ต้องการเช็ค",
   "A description is required so the pet knows what this tool does.":
     "ต้องเขียนคำอธิบาย เพื่อให้สัตว์เลี้ยงรู้ว่าเครื่องมือนี้ทำอะไร",
   "Parameters must be JSON.": "พารามิเตอร์ต้องเป็น JSON",

@@ -1376,9 +1376,10 @@
           <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
           <p class="memory-hint">
             <span
-              data-i18n="Describe what the tool does and the parameters the pet must fill in. On each pet, choose which tools it may use and when."
-              >Describe what the tool does and the parameters the pet must fill
-              in. On each pet, choose which tools it may use and when.</span
+              data-i18n="Describe what the tool does, and in your own words what the pet should send. On each pet, choose which tools it may use and when."
+              >Describe what the tool does, and in your own words what the pet
+              should send. On each pet, choose which tools it may use and
+              when.</span
             >
           </p>
           <form id="mcpForm" class="mcp-form">
@@ -1417,16 +1418,17 @@
             ></textarea>
             <textarea
               id="mcpParameters"
-              rows="5"
-              spellcheck="false"
-              placeholder='{"type":"object","properties":{"city":{"type":"string","description":"City name"}},"required":["city"]}'
-              aria-label="Parameters"
+              maxlength="500"
+              rows="3"
+              placeholder="Must send the province name and the date to check"
+              aria-label="What to send"
+              data-i18n-placeholder="Must send the province name and the date to check"
             ></textarea>
             <p class="memory-hint">
               <span
-                data-i18n="Parameters are JSON the model fills in before calling the tool. Leave blank if the tool needs nothing."
-                >Parameters are JSON the model fills in before calling the tool.
-                Leave blank if the tool needs nothing.</span
+                data-i18n="Write what the pet should send, in your own words. Leave blank if the tool needs nothing."
+                >Write what the pet should send, in your own words. Leave blank
+                if the tool needs nothing.</span
               >
             </p>
             <div class="mcp-form-actions">

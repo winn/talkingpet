@@ -831,34 +831,24 @@ async function loadMcpServers() {
       return;
     }
     list.innerHTML = mcpCache
-      .map((server) => {
-        const params = summarizeClientParameters(server.parameters);
-        return `
+      .map(
+        (server) => `
       <div class="mcp-row" data-id="${escapeHtml(server.id)}">
         <div>
           <strong>${escapeHtml(server.name)}</strong>
           <p class="admin-row-meta">${escapeHtml(server.description || t("No description yet."))}</p>
-          <p class="admin-row-meta">${escapeHtml(params || t("No parameters."))}</p>
+          <p class="admin-row-meta">${escapeHtml(server.parameter_hint || t("No parameters."))}</p>
         </div>
         <div class="mcp-row-actions">
           <button type="button" class="text-button mcp-edit" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Edit"))}</button>
           <button type="button" class="text-button mcp-remove" data-id="${escapeHtml(server.id)}">${escapeHtml(t("Remove"))}</button>
         </div>
-      </div>`;
-      })
+      </div>`,
+      )
       .join("");
   } catch (err) {
     list.innerHTML = `<p class="packs-hint">${escapeHtml(err instanceof Error ? err.message : t("Could not load MCP servers."))}</p>`;
   }
-}
-
-function summarizeClientParameters(parameters) {
-  const props = parameters?.properties;
-  if (!props || typeof props !== "object") return "";
-  const required = new Set(parameters.required || []);
-  return Object.entries(props)
-    .map(([name, spec]) => `${name}${required.has(name) ? "*" : ""}`)
-    .join(", ");
 }
 
 function clearMcpForm() {
@@ -881,10 +871,7 @@ function fillMcpForm(server) {
   $("#mcpUrl").value = server.url || "";
   $("#mcpAuthValue").value = "";
   $("#mcpDescription").value = server.description || "";
-  const params = server.parameters;
-  const empty =
-    !params?.properties || Object.keys(params.properties).length === 0;
-  $("#mcpParameters").value = empty ? "" : JSON.stringify(params, null, 2);
+  $("#mcpParameters").value = server.parameter_hint || "";
   $("#mcpCancelEdit").hidden = false;
   localizeText($("#mcpAddBtn").querySelector("span"), "Save");
   $("#mcpSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -900,7 +887,7 @@ function bindMcpForm() {
     const url = $("#mcpUrl").value.trim();
     const authValue = $("#mcpAuthValue").value.trim();
     const description = $("#mcpDescription").value.trim();
-    const parametersText = $("#mcpParameters").value.trim();
+    const parameterHint = $("#mcpParameters").value.trim();
     if (!name || !url) {
       setMcpMessage(t("Name and URL are required."));
       return;
@@ -908,15 +895,6 @@ function bindMcpForm() {
     if (!description) {
       setMcpMessage(t("A description is required so the pet knows what this tool does."));
       return;
-    }
-    let parameters = "";
-    if (parametersText) {
-      try {
-        parameters = JSON.parse(parametersText);
-      } catch {
-        setMcpMessage(t("Parameters must be JSON."));
-        return;
-      }
     }
     const editing = form.dataset.editId || "";
     const button = $("#mcpAddBtn");
@@ -926,7 +904,7 @@ function bindMcpForm() {
         name,
         url,
         description,
-        parameters,
+        parameterHint,
         ...(authValue
           ? { authValue, authHeader: "Authorization" }
           : {}),

@@ -123,6 +123,7 @@ export function mcpToolPayload({
   authValue,
   status = "active",
   parameters = { type: "object", properties: {}, required: [] },
+  parameterHint = "",
 }) {
   const headers = {};
   if (authHeader && authValue) headers[authHeader] = authValue;
@@ -130,9 +131,14 @@ export function mcpToolPayload({
     parameters && typeof parameters === "object" && !Array.isArray(parameters)
       ? parameters
       : { type: "object", properties: {}, required: [] };
+  const hint = String(parameterHint || "").trim();
+  const described = [String(description || `MCP server ${url}`).trim(), hint ? `What to send: ${hint}` : ""]
+    .filter(Boolean)
+    .join(". ")
+    .slice(0, 500);
   return {
     name: String(name).trim().slice(0, 80),
-    description: String(description || `MCP server ${url}`).slice(0, 500),
+    description: described,
     tool_type: "mcp",
     status,
     parameters: {

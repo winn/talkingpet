@@ -32,6 +32,13 @@ test("mcp tool payload and agent tool wiring", async () => {
   });
   assert.deepEqual(withParams.parameters.required, ["city"]);
   assert.equal(withParams.parameters.properties.city.description, "City");
+  const hinted = mcpToolPayload({
+    name: "weather",
+    description: "Weather",
+    url: "https://example.com/mcp",
+    parameterHint: "province name and the date",
+  });
+  assert.match(hinted.description, /What to send: province name and the date/);
 
   const data = agentDataWithTools({ language: "th" }, ["tm_abc_github", ""]);
   assert.deepEqual(data.tool_names, ["tm_abc_github"]);
@@ -53,9 +60,10 @@ test("mcp parameters and pet call instructions", async () => {
       name: "weather",
       description: "Current weather",
       when: "they ask about the weather",
+      parameter_hint: "province name and the date to check",
       parameters: schema,
     },
   ]);
   assert.match(prompt, /Call only when: they ask about the weather/);
-  assert.match(prompt, /city \(string, required\)/);
+  assert.match(prompt, /Send: province name and the date to check/);
 });

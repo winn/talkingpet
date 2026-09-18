@@ -66,7 +66,7 @@ export async function toolsForPet(db, userId, links) {
   if (!db || !userId || !ids.length) return [];
   const { data } = await db
     .from("mcp_servers")
-    .select("id, name, description, parameters, botnoi_tool_name, status")
+    .select("id, name, description, parameters, parameter_hint, botnoi_tool_name, status")
     .eq("user_id", userId)
     .eq("status", "active")
     .in("id", ids);
@@ -84,11 +84,11 @@ export async function toolsForPet(db, userId, links) {
 export function mcpPromptAppendix(tools) {
   if (!tools?.length) return "";
   const blocks = tools.map((tool) => {
-    const params = summarizeParameters(tool.parameters);
+    const hint = String(tool.parameter_hint || "").trim() || summarizeParameters(tool.parameters);
     return [
       `- ${tool.name}: ${tool.description || "No description."}`,
       `  Call only when: ${tool.when || "it clearly helps what the person just said."}`,
-      params ? `  Fill these parameters: ${params}` : "  This tool takes no parameters.",
+      hint ? `  Send: ${hint}` : "  This tool takes no extra details.",
     ].join("\n");
   });
   return (

@@ -10,7 +10,7 @@ import { adminClient, userClient, userFromRequest } from "../../server/supabase.
 import { normalizeParameters } from "../../server/mcp.js";
 
 const PUBLIC_COLUMNS =
-  "id, name, description, parameters, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at";
+  "id, name, description, parameters, parameter_hint, url, auth_header, botnoi_tool_id, botnoi_tool_name, status, created_at, updated_at";
 
 /** Service role when present; otherwise the caller's JWT (RLS). */
 function dbFor(request) {
@@ -55,6 +55,7 @@ export async function POST(request) {
     return jsonError("bad_request", "A description is required so the pet knows what this tool does.", 400);
   const parameters = readParameters(body.parameters);
   if (parameters.error) return jsonError("bad_parameters", parameters.error, 400);
+  const parameterHint = readHint(body.parameterHint ?? body.parameter_hint);
   const authHeader = String(body.authHeader || body.auth_header || "").trim() || null;
   const authValue = String(body.authValue || body.auth_value || body.api_key || "").trim() || null;
   const toolName = botnoiToolName(user.id, name);
@@ -70,6 +71,7 @@ export async function POST(request) {
           authHeader,
           authValue,
           parameters,
+          parameterHint,
         }),
       );
       botnoiToolId = extractToolId(created);
@@ -85,6 +87,7 @@ export async function POST(request) {
       name,
       description,
       parameters,
+      parameter_hint: parameterHint,
       url,
       auth_header: authHeader,
       auth_value: authValue,
@@ -137,6 +140,10 @@ export async function PUT(request) {
     body.parameters == null ? null : readParameters(body.parameters);
   if (parsedParameters?.error) return jsonError("bad_parameters", parsedParameters.error, 400);
   const parameters = parsedParameters || existing.parameters;
+  const parameterHint =
+    body.parameterHint != null || body.parameter_hint != null
+      ? readHint(body.parameterHint ?? body.parameter_hint)
+      : existing.parameter_hint || "";
   const authHeader =
     body.authHeader != null || body.auth_header != null
       ? String(body.authHeader || body.auth_header || "").trim() || null
@@ -155,6 +162,7 @@ export async function PUT(request) {
     authValue,
     status,
     parameters,
+    parameterHint,
   });
 
   if (botnoiConfigured()) {
@@ -179,6 +187,7 @@ export async function PUT(request) {
       name,
       description,
       parameters,
+      parameter_hint: parameterHint,
       url,
       auth_header: authHeader,
       auth_value: authValue,
@@ -224,6 +233,10 @@ export async function DELETE(request) {
     .eq("user_id", user.id);
   if (error) return jsonError("db", error.message, 500);
   return json({ ok: true });
+}
+
+function readHint(value) {
+  return String(value || "").trim().slice(0, 500);
 }
 
 function readParameters(value) {
