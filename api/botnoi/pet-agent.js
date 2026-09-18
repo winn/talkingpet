@@ -5,12 +5,15 @@ import {
   attachMcpConnections,
   botnoiToolName,
   buildPetAgentData,
+  consolePreservingPayload,
   createOrUpdateAgent,
   createTool,
   extractAgentId,
   extractToolId,
+  getAgent,
   mcpToolPayload,
   petVoiceData,
+  readStoredAgent,
   resolveBotnoiConnectorKey,
   resolveBotnoiToken,
 } from "../../server/botnoi.js";
@@ -47,7 +50,7 @@ export async function PUT(request) {
   const instruction = `Your name is ${petName}.\n${prompt}`;
   const greeting = personality.slice(0, 240) || petName;
 
-  const payload = {
+  const createPayload = {
     bot_name: botName.slice(0, 80),
     agent_data: buildPetAgentData({
       personality: instruction,
@@ -57,32 +60,46 @@ export async function PUT(request) {
     }),
     voice_data: petVoiceData(language),
   };
-  if (existingAgentId) payload.agent_id = existingAgentId;
+  if (existingAgentId) createPayload.agent_id = existingAgentId;
+
+  let stored = null;
+  let skipWrite = false;
+  if (existingAgentId) {
+    try {
+      stored = readStoredAgent(await getAgent(existingAgentId, { token }));
+      if (!stored.voice_data && !stored.agent_data) skipWrite = true;
+    } catch (err) {
+      if (err?.status !== 404) skipWrite = true;
+    }
+  }
+  const payload = skipWrite ? null : consolePreservingPayload(createPayload, stored, toolNames);
 
   try {
-    const agent = await createOrUpdateAgent(payload, { token });
-    const agentId = extractAgentId(agent) || existingAgentId;
+    let agentId = existingAgentId;
+    if (payload) {
+      const agent = await createOrUpdateAgent(payload, { token });
+      agentId = extractAgentId(agent) || existingAgentId;
+    }
     if (!agentId) {
       return jsonError("botnoi_agent", "Botnoi did not return an agent id.", 502);
     }
     const connections = await attachMcpConnections(agentId, tools, { token });
     const discovered = connections.flatMap((row) => row.toolNames || []);
     const merged = [...new Set([...toolNames, ...discovered])];
-    if (discovered.some((name) => !toolNames.includes(name))) {
+    if (payload && discovered.some((name) => !toolNames.includes(name))) {
       payload.agent_id = agentId;
-      payload.agent_data = buildPetAgentData({
-        personality: instruction,
-        greeting,
-        language,
-        toolNames: merged,
-      });
+      payload.agent_data = {
+        ...payload.agent_data,
+        tools: merged.map((name) => ({ name })),
+        tool_names: merged,
+      };
       await createOrUpdateAgent(payload, { token });
     }
     const apiKey = await resolveBotnoiConnectorKey(db);
     return json({
       engine: "botnoi",
       agentId,
-      botName: payload.bot_name,
+      botName: payload?.bot_name || stored?.bot_name || createPayload.bot_name,
       toolNames: merged,
       wssUrl: BOTNOI_WSS_URL,
       apiKey: apiKey || null,

@@ -143,3 +143,36 @@ test("pet agent uses the Talking Jelly live envelope", async () => {
   assert.ok(calls.some((call) => call.method === "POST" && String(call.body).includes("server_url")));
   assert.ok(calls.some((call) => call.method === "PUT" && call.url.includes("/mcp/agents/agt_1/connections/conn_1")));
 });
+
+test("an existing agent keeps the voice and prompt edited in the console", async () => {
+  const { consolePreservingPayload, readStoredAgent } = await import("../server/botnoi.js");
+  const stored = readStoredAgent({
+    bot_info: {
+      bot_name: "Noodle",
+      agent_id: "agt_9",
+      voice_data: { provider: "botnoivoice", speaker_id: "42", language: "th" },
+      agent_data: {
+        select_agent: "gemini_live",
+        system_instruction: "Speak like a cat.",
+        model: "custom-model",
+        tool_names: ["console_tool"],
+      },
+    },
+  });
+  const payload = consolePreservingPayload(
+    {
+      bot_name: "tm_default",
+      agent_id: "agt_9",
+      voice_data: { provider: "botnoivoice", speaker_id: "1", language: "en" },
+      agent_data: { system_instruction: "default", model: "gemini-3.1-flash-live-preview" },
+    },
+    stored,
+    ["tm_weather"],
+  );
+  assert.equal(payload.bot_name, "Noodle");
+  assert.equal(payload.voice_data.speaker_id, "42");
+  assert.equal(payload.voice_data.language, "th");
+  assert.equal(payload.agent_data.system_instruction, "Speak like a cat.");
+  assert.equal(payload.agent_data.model, "custom-model");
+  assert.deepEqual(payload.agent_data.tool_names, ["console_tool", "tm_weather"]);
+});

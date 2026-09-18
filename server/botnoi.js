@@ -297,13 +297,71 @@ export function buildPetAgentData({
   );
 }
 
-/** Lada, the same Botnoi speaker Talking Jelly assigns. */
+/** Lada, the same Botnoi speaker Talking Jelly assigns. Used only when creating. */
 export function petVoiceData(language = "en") {
   return {
     provider: "botnoivoice",
     speaker_id: "1",
     language: language === "th" ? "th" : "en",
   };
+}
+
+function firstObject(roots, key) {
+  for (const root of roots) {
+    const value = root?.[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  }
+  return null;
+}
+
+/** Pull voice, prompt, and name out of whatever shape GET /agents/{id} returns. */
+export function readStoredAgent(data) {
+  const roots = [data, data?.data, data?.bot_info, data?.agent, data?.data?.bot_info].filter(
+    (row) => row && typeof row === "object",
+  );
+  let bot_name = null;
+  for (const root of roots) {
+    const name = root.bot_name || root.name;
+    if (typeof name === "string" && name.trim()) {
+      bot_name = name.trim();
+      break;
+    }
+  }
+  return {
+    voice_data: firstObject(roots, "voice_data"),
+    agent_data: firstObject(roots, "agent_data"),
+    transfer: firstObject(roots, "transfer"),
+    webhook: firstObject(roots, "webhook"),
+    bot_name,
+  };
+}
+
+export function unionToolNames(agentData, extra = []) {
+  const fromNames = Array.isArray(agentData?.tool_names) ? agentData.tool_names : [];
+  const fromTools = Array.isArray(agentData?.tools)
+    ? agentData.tools.map((tool) => (typeof tool === "string" ? tool : tool?.name)).filter(Boolean)
+    : [];
+  return [...new Set([...fromNames, ...fromTools, ...extra].filter(Boolean))];
+}
+
+/**
+ * An agent edited in the Botnoi console must keep that voice and prompt.
+ * Talking Momo only adds tool names. Defaults apply when there is nothing stored.
+ */
+export function consolePreservingPayload(createPayload, stored, toolNames = []) {
+  if (!stored?.voice_data && !stored?.agent_data) return { ...createPayload };
+  const names = unionToolNames(stored.agent_data, toolNames);
+  const payload = {
+    bot_name: stored.bot_name || createPayload.bot_name,
+    agent_data: stored.agent_data
+      ? agentDataWithTools({ ...stored.agent_data }, names)
+      : createPayload.agent_data,
+  };
+  if (createPayload.agent_id) payload.agent_id = createPayload.agent_id;
+  if (stored.voice_data) payload.voice_data = stored.voice_data;
+  if (stored.transfer) payload.transfer = stored.transfer;
+  if (stored.webhook) payload.webhook = stored.webhook;
+  return payload;
 }
 
 function connectionIdOf(row) {
