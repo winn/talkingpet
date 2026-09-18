@@ -295,6 +295,9 @@ export const TH = {
     "เก็บมาจากการคุยกัน เพิ่มเองได้ หรือกดลืมเรื่องที่ไม่อยากให้จำ",
   Memory: "ความทรงจำ",
   "Open memory": "เปิดความทรงจำ",
+  "Checking a tool…": "กำลังเช็กเครื่องมือ…",
+  "Got it from {name}. Saying it now…": "ได้คำตอบจาก {name} แล้ว กำลังพูดให้ฟัง…",
+  "Could not use {name}.": "ใช้ {name} ไม่ได้",
   "MCP tools for your pets": "เครื่องมือ MCP สำหรับสัตว์เลี้ยง",
   "MCP tools": "เครื่องมือ MCP",
   "Add an MCP server here. It will be attached the next time you talk to a pet.":

@@ -84,6 +84,7 @@ import {
   applyTalkSceneBackdrop,
 } from "./backgrounds.js";
 import { ensurePetVoiceAgent } from "./botnoi-client.js";
+import { loadTalkMcpNote, mcpResultInstruction, usePetMcp } from "./mcp-talk.js";
 import { openPetMcp } from "./pet-mcp.js";
 
 // Prevent mobile browser page zoom while preserving canvas pinch gestures
@@ -590,11 +591,7 @@ async function extractChatToMemory({ silent = false, clear = true } = {}) {
 /** Push the current memories into the running chat's instructions. */
 async function pushGreetingToWidget() {
   if (!activeChatPet || !window.ChatWidgetConfig) return;
-  const greetingInstruction = buildChatGreeting(
-    activeChatPet,
-    getLanguage(),
-    activeMemories,
-  );
+  const greetingInstruction = currentChatGreeting();
   window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
   if (typeof window.ChatWidget?.updateConfig === "function") {
     try {
@@ -966,22 +963,92 @@ async function startTalk(pet) {
   return true;
 }
 
-let widgetUserMessagesHooked = false;
-/** Register once ChatWidget exists; retries until the widget is ready. */
+let hookedUserMessageWidget = null;
+let talkMcpNote = "";
+let talkMcpResult = "";
+const mcpHandledTurns = new Set();
+let mcpTurnBusy = false;
+let lastMcpUserStamp = 0;
+
+function currentChatGreeting() {
+  return `${buildChatGreeting(activeChatPet, getLanguage(), activeMemories)}${talkMcpNote}${talkMcpResult}`;
+}
+
+function noteNewUserTurns() {
+  for (const turn of getCapturedTurns()) {
+    if (turn.sender !== "user" || !turn.text) continue;
+    if (turn.timestamp <= lastMcpUserStamp) continue;
+    lastMcpUserStamp = Math.max(lastMcpUserStamp, turn.timestamp);
+    void answerWithMcp(turn.text);
+  }
+}
 function hookWidgetUserMessages() {
-  if (widgetUserMessagesHooked) return;
-  const register = window.ChatWidget?.onUserMessage;
-  if (typeof register !== "function") return;
-  widgetUserMessagesHooked = true;
+  const widget = window.ChatWidget;
+  const register = widget?.onUserMessage;
+  if (!widget || typeof register !== "function") return;
+  if (hookedUserMessageWidget === widget) return;
+  hookedUserMessageWidget = widget;
   try {
     register((text) => {
       if (!activeChatPet) return;
       pushCapturedTurn({ sender: "user", text, timestamp: Date.now() });
       if (isChatLogOpen()) renderChatLog(currentTurns());
+      void answerWithMcp(text);
     });
   } catch (err) {
-    widgetUserMessagesHooked = false;
+    hookedUserMessageWidget = null;
     console.warn("[TalkingMomo] onUserMessage hook failed:", err);
+  }
+}
+
+/**
+ * The species widget has no per-pet tools. When the line matches a linked
+ * server, call that MCP ourselves and reload the session so the pet says the result.
+ */
+async function answerWithMcp(text) {
+  const pet = activeChatPet;
+  const line = String(text || "").trim();
+  if (!pet?.mcpLinks?.length || !line || mcpTurnBusy) return;
+  if (mcpHandledTurns.has(line)) return;
+  const status = document.querySelector("#chatStatus");
+  mcpTurnBusy = true;
+  if (status) localizeText(status, "Checking a tool…");
+  try {
+    const used = await usePetMcp(pet, line);
+    if (activeChatPet?.id !== pet.id) return;
+    if (!used?.matched) {
+      if (status) localizeText(status, "");
+      return;
+    }
+    mcpHandledTurns.add(line);
+    if (!used.ok || !used.result) {
+      if (status) localizeText(status, "Could not use {name}.", { name: used.serverName || "tool" });
+      return;
+    }
+    talkMcpResult = mcpResultInstruction({
+      userText: line,
+      tool: used.tool,
+      serverName: used.serverName,
+      result: used.result,
+      language: getLanguage(),
+    });
+    const greetingInstruction = currentChatGreeting();
+    if (window.ChatWidgetConfig) window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
+    pushCapturedTurn({ sender: "bot", text: used.result, timestamp: Date.now() });
+    if (isChatLogOpen()) renderChatLog(currentTurns());
+    if (status) localizeText(status, "Got it from {name}. Saying it now…", { name: used.serverName || used.tool });
+    if (window.ChatWidget && typeof window.ChatWidget.updateConfig === "function") {
+      await window.ChatWidget.updateConfig({
+        ...window.ChatWidgetConfig,
+        greetingInstruction,
+      });
+      hookWidgetUserMessages();
+    }
+  } catch (err) {
+    console.warn("[TalkingMomo] MCP call failed:", err);
+    if (status) localizeText(status, "Could not use {name}.", { name: "tool" });
+  } finally {
+    mcpTurnBusy = false;
   }
 }
 
@@ -1017,11 +1084,16 @@ export async function launchPetChat(pet) {
   activeChatPet = pet;
   talkStartedAt = Date.now();
   typedTurns = [];
+  talkMcpNote = "";
+  talkMcpResult = "";
+  mcpHandledTurns.clear();
+  lastMcpUserStamp = 0;
   clearCapturedTurns();
   sessionTranscriptBackup = [];
   sessionRememberDone = false;
   const paintCaptured = () => {
     if (launchToken !== chatLaunchToken) return;
+    noteNewUserTurns();
     if (isChatLogOpen()) renderChatLog(currentTurns());
   };
   startChatCapture(document.querySelector("#chatWidgetContainer"), {
@@ -1057,7 +1129,9 @@ export async function launchPetChat(pet) {
   talkScreen.classList.remove("hidden");
   talkScreen.style.display = "flex";
 
-  const greeting = buildChatGreeting(pet, getLanguage(), activeMemories);
+  talkMcpNote = await loadTalkMcpNote(pet);
+  if (launchToken !== chatLaunchToken) return;
+  const greeting = currentChatGreeting();
 
   // Prefer a per-pet Botnoi agent (with this account's MCP tools) when the
   // Voice API token is configured; otherwise keep the shared species widget.
@@ -2844,6 +2918,7 @@ function watchChatSurface(backgroundColor, backgroundId, launchToken) {
   startChatCapture(container, {
     onCapture: () => {
       if (launchToken !== chatLaunchToken) return;
+      noteNewUserTurns();
       if (isChatLogOpen()) renderChatLog(currentTurns());
     },
   });
@@ -2948,11 +3023,7 @@ window.addEventListener("languagechange", async () => {
     document.querySelector("#tryPromptBtn").click();
   if (activeChatPet && window.ChatWidgetConfig) {
     localizeChatControls(document.querySelector("#chatWidgetContainer"));
-    const greetingInstruction = buildChatGreeting(
-      activeChatPet,
-      getLanguage(),
-      activeMemories,
-    );
+    const greetingInstruction = currentChatGreeting();
     window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
     if (
       window.ChatWidget &&

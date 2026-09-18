@@ -1,6 +1,7 @@
 // Tiny built-in MCP server (Streamable HTTP, stateless JSON responses) used
 // to test the "connect an MCP server" flow end to end. Weather comes from
 // Open-Meteo, which is free and needs no API key.
+import { placeQuery } from "./mcp-use.js";
 const PROTOCOL_VERSION = "2025-03-26";
 const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
@@ -121,7 +122,8 @@ async function callTool(name, args, fetchImpl) {
 }
 
 async function weather(city, fetchImpl) {
-  const query = String(city || "").trim();
+  const asked = placeQuery(city);
+  const query = asked.query;
   if (!query) throw new Error("city is required.");
   // Thai names only resolve when the search language is Thai.
   const language = /[฀-๿]/.test(query) ? "th" : "en";
@@ -129,11 +131,11 @@ async function weather(city, fetchImpl) {
     `https://geocoding-api.open-meteo.com/v1/search?count=1&language=${language}&name=${encodeURIComponent(query)}`,
     fetchImpl,
   );
-  const place = geo?.results?.[0];
-  if (!place) throw new Error(`Could not find a city called "${query}".`);
+  const found = geo?.results?.[0];
+  if (!found) throw new Error(`Could not find a city called "${query}".`);
   const data = await getJson(
     "https://api.open-meteo.com/v1/forecast" +
-      `?latitude=${place.latitude}&longitude=${place.longitude}` +
+      `?latitude=${found.latitude}&longitude=${found.longitude}` +
       "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m" +
       "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
       "&forecast_days=3&timezone=auto",
@@ -141,7 +143,7 @@ async function weather(city, fetchImpl) {
   );
   const now = data.current;
   const lines = [
-    `Weather for ${[place.name, place.country].filter(Boolean).join(", ")}:`,
+    `Weather for ${[found.name, found.country].filter(Boolean).join(", ")}:`,
     `Now: ${describe(now.weather_code)}, ${now.temperature_2m}°C (feels like ${now.apparent_temperature}°C), humidity ${now.relative_humidity_2m}%, wind ${now.wind_speed_10m} km/h.`,
   ];
   (data.daily?.time || []).forEach((day, i) => {
@@ -149,6 +151,7 @@ async function weather(city, fetchImpl) {
       `${day}: ${describe(data.daily.weather_code[i])}, ${data.daily.temperature_2m_min[i]}–${data.daily.temperature_2m_max[i]}°C, rain chance ${data.daily.precipitation_probability_max[i] ?? 0}%.`,
     );
   });
+  if (asked.assumed) lines.push("No city was named, so this is Bangkok.");
   return lines.join("\n");
 }
 
