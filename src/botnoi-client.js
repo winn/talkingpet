@@ -56,6 +56,16 @@ export async function deleteMcpServer(id) {
   return true;
 }
 
+/** Call an MCP URL from the form and return the tool result. Does not save. */
+export async function testMcpServer(input) {
+  const res = await fetch("/api/mcp/test", {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(input),
+  });
+  return readApi(res);
+}
+
 /**
  * Ensure this pet has a Botnoi Voice agent with the user's MCP tools attached.
  * Resolves { agentId, toolNames } or null when Botnoi is not set up.
@@ -81,7 +91,14 @@ export async function ensurePetVoiceAgent(pet, { personality = "", language = "e
     }
     const data = await readApi(res);
     if (!data.agentId) return null;
-    return { agentId: data.agentId, toolNames: data.toolNames || [], botName: data.botName };
+    return {
+      agentId: data.agentId,
+      toolNames: data.toolNames || [],
+      botName: data.botName,
+      engine: data.engine || "botnoi",
+      wssUrl: data.wssUrl || "",
+      apiKey: data.apiKey || "",
+    };
   } catch (err) {
     console.warn("[TalkingMomo] pet agent ensure failed:", err);
     return null;

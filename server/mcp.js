@@ -66,7 +66,9 @@ export async function toolsForPet(db, userId, links) {
   if (!db || !userId || !ids.length) return [];
   const { data } = await db
     .from("mcp_servers")
-    .select("id, name, description, parameters, parameter_hint, botnoi_tool_name, status")
+    .select(
+      "id, name, description, parameters, parameter_hint, url, auth_header, auth_value, botnoi_tool_id, botnoi_tool_name, status",
+    )
     .eq("user_id", userId)
     .eq("status", "active")
     .in("id", ids);

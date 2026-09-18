@@ -67,3 +67,79 @@ test("mcp parameters and pet call instructions", async () => {
   assert.match(prompt, /Call only when: they ask about the weather/);
   assert.match(prompt, /Send: province name and the date to check/);
 });
+
+test("saved Botnoi token is used like the other AI keys", async () => {
+  const { resolveBotnoiToken } = await import("../server/botnoi.js");
+  const { verifyKey } = await import("../server/settings.js");
+  delete process.env.BOTNOI_VOICE_TOKEN;
+  delete process.env.BOTNOI_API_TOKEN;
+  const fake = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({
+            data: { value: "savedtoken1234", updated_at: null, updated_by: null },
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  };
+  assert.equal(await resolveBotnoiToken(fake), "savedtoken1234");
+  await verifyKey("botnoi", "token", async (url, init) => {
+    assert.match(String(url), /\/platform-config\/tools$/);
+    assert.match(init.headers.authorization, /^Bearer token$/);
+    return { ok: true, status: 200 };
+  });
+  await assert.rejects(
+    verifyKey("botnoi", "nope", async () => ({ ok: false, status: 401, json: async () => ({}) })),
+    /invalid_key/,
+  );
+});
+
+test("pet agent uses the Talking Jelly live envelope", async () => {
+  const { buildPetAgentData, extractAgentId, petVoiceData, attachMcpConnections } =
+    await import("../server/botnoi.js");
+  const data = buildPetAgentData({
+    personality: "You are Noodle. Stay playful.",
+    greeting: "You are Noodle.",
+    language: "th",
+    toolNames: ["tm_weather"],
+  });
+  assert.equal(data.select_agent, "gemini_live");
+  assert.equal(data.engine_type, "voice2voice");
+  assert.equal(data.gemini_live_model, "models/gemini-3.1-flash-live-preview");
+  assert.match(data.system_instruction, /You are Noodle/);
+  assert.equal(data.greeting_text, "You are Noodle.");
+  assert.deepEqual(data.tool_names, ["tm_weather"]);
+  assert.equal(petVoiceData("th").provider, "botnoivoice");
+  assert.equal(petVoiceData("th").speaker_id, "1");
+  assert.equal(petVoiceData("th").language, "th");
+  assert.equal(extractAgentId({ bot_info: { agent_id: "agt_1" } }), "agt_1");
+
+  const calls = [];
+  const bound = await attachMcpConnections(
+    "agt_1",
+    [{ name: "weather", url: "https://example.com/mcp" }],
+    {
+      token: "t",
+      fetchImpl: async (url, init) => {
+        calls.push({ url, method: init.method, body: init.body });
+        if (String(url).endsWith("/mcp/connections") && init.method === "GET") {
+          return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+        }
+        if (String(url).endsWith("/mcp/connections") && init.method === "POST") {
+          return new Response(
+            JSON.stringify({ id: "conn_1", tools: [{ name: "get_weather" }] }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+      },
+    },
+  );
+  assert.equal(bound[0].connectionId, "conn_1");
+  assert.deepEqual(bound[0].toolNames, ["get_weather"]);
+  assert.ok(calls.some((call) => call.method === "POST" && String(call.body).includes("server_url")));
+  assert.ok(calls.some((call) => call.method === "PUT" && call.url.includes("/mcp/agents/agt_1/connections/conn_1")));
+});

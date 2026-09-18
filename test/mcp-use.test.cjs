@@ -42,6 +42,60 @@ test("pet when-clause matches weather talk and picks get_weather", async () => {
   assert.equal(placeQuery("").query, "");
 });
 
+test("form sample จังหวัด is sent as the weather tool's city", async () => {
+  const { mapSampleArgs } = await import("../server/mcp-use.js");
+  const { runMcpTest } = await import("../server/mcp-test.js");
+  const tool = {
+    name: "get_weather",
+    description: "Current weather for a city.",
+    inputSchema: {
+      type: "object",
+      properties: { city: { type: "string", description: "City name" } },
+      required: ["city"],
+    },
+  };
+  assert.deepEqual(
+    mapSampleArgs(tool, { type: "object", properties: { จังหวัด: { type: "string" } }, required: ["จังหวัด"] }, { จังหวัด: "เชียงใหม่" }),
+    { city: "เชียงใหม่" },
+  );
+
+  const fetchImpl = async (_url, init) => {
+    const method = JSON.parse(init.body).method;
+    if (method === "tools/call") {
+      const args = JSON.parse(init.body).params.arguments;
+      assert.equal(args.city, "ภูเก็ต");
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => "" },
+        text: async () => JSON.stringify({ jsonrpc: "2.0", id: 2, result: { content: [{ type: "text", text: "Sunny in Phuket." }] } }),
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => "" },
+      text: async () =>
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          result: { tools: [tool, { name: "roll_dice", description: "Roll dice." }] },
+        }),
+    };
+  };
+  const result = await runMcpTest({
+    url: "https://www.talkingmomo.com/api/mcp/demo",
+    description: "บอกสภาพอากาศ",
+    parameters: { type: "object", properties: { จังหวัด: { type: "string" } }, required: ["จังหวัด"] },
+    sample: { จังหวัด: "ภูเก็ต" },
+    fetchImpl,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.tool, "get_weather");
+  assert.equal(result.arguments.city, "ภูเก็ต");
+  assert.match(result.result, /Phuket/);
+});
+
 test("mcp client parses a stateless tools/list", async () => {
   const { listRemoteTools, callRemoteTool } = await import("../server/mcp-client.js");
   const calls = [];

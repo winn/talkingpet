@@ -349,6 +349,7 @@ function friendlyServerError(message) {
   const m = String(message ?? "");
   if (/missing_elevenlabs_key/.test(m)) return "Save an ElevenLabs key in the AI keys tab first.";
   if (/missing_gemini_key/.test(m)) return "Save a Gemini key in the AI keys tab first.";
+  if (/missing_botnoi/.test(m)) return "Save a Botnoi token in the AI keys tab first.";
   if (/invalid_key/.test(m)) return "The provider refused this key. Check it and any permissions (ElevenLabs keys need Music and Sound Effects access).";
   if (/unreachable/.test(m)) return "Could not reach the provider right now. Try again.";
   if (/sfx_cue_taken/.test(m)) return "That [tag] is already in the library. Change it and try again.";
@@ -375,7 +376,7 @@ async function adminApi(path, { method = "POST", body, query } = {}) {
   return data;
 }
 
-export const AI_PROVIDERS = ["elevenlabs", "gemini"];
+export const AI_PROVIDERS = ["elevenlabs", "gemini", "botnoi", "botnoi_call"];
 
 export const adminKeyStatus = (provider) =>
   adminApi("/api/admin/keys", { method: "GET", query: { provider } });

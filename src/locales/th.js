@@ -182,6 +182,14 @@ export const TH = {
   "Could not save yet. Your work is still here. Please try again.":
     "ยังบันทึกไม่ได้ ผลงานยังอยู่นะ ลองอีกครั้งได้เลย",
   "Getting ready to say hello…": "กำลังเตรียมตัวทักทาย…",
+  "Connecting the voice…": "กำลังเชื่อมเสียง…",
+  "Allow the microphone, then try Talk again.":
+    "อนุญาตไมโครโฟนก่อน แล้วลองคุยอีกครั้งนะ",
+  "The Botnoi call key was rejected. Check AI keys.":
+    "คีย์โทรของ Botnoi ใช้ไม่ได้ ตรวจที่ AI keys นะ",
+  "Could not open the Botnoi call.": "เปิดสาย Botnoi ไม่ได้",
+  "Add the Botnoi call key in AI keys, then try Talk again.":
+    "ใส่คีย์โทรของ Botnoi ที่ AI keys ก่อน แล้วลองคุยอีกครั้ง",
   "Your pet is saved! We couldn’t connect to chat. Go back to My pets and try again.":
     "บันทึกเพื่อนแล้ว! แต่เชื่อมต่อห้องคุยไม่ได้ กลับไปหน้าเพื่อนของเราแล้วลองใหม่นะ",
   "Colors cleared. Undo brings them back.":
@@ -338,6 +346,17 @@ export const TH = {
   Edit: "แก้ไข",
   "Loading…": "กำลังโหลด…",
   "Add MCP": "เพิ่ม MCP",
+  "Test": "ทดสอบ",
+  "Test value": "ค่าทดสอบ",
+  "Testing the MCP server…": "กำลังทดสอบเซิร์ฟเวอร์ MCP…",
+  "Connected. Tools: {tools}": "เชื่อมต่อได้ เครื่องมือ: {tools}",
+  "Connected, but this server listed no tools.": "เชื่อมต่อได้ แต่เซิร์ฟเวอร์นี้ไม่มีเครื่องมือ",
+  "Could not tell which tool to call. Make the description clearer.":
+    "เซิร์ฟเวอร์ตอบแล้ว แต่ยังเลือกเครื่องมือไม่ถูก ทำให้คำอธิบายชัดขึ้น",
+  "Called {tool}": "เรียก {tool}",
+  "Sent {args}": "ส่ง {args}",
+  "Fill in {name}, then test again.": "ใส่ {name} ก่อน แล้วกดทดสอบอีกครั้ง",
+  "Could not test the MCP server.": "ทดสอบ MCP ไม่ได้",
   "Optional API key": "API key (ถ้ามี)",
   "No MCP servers yet.": "ยังไม่มีเซิร์ฟเวอร์ MCP",
   "MCP server connected.": "เชื่อมต่อ MCP แล้ว",

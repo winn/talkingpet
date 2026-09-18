@@ -84,6 +84,8 @@ import {
   applyTalkSceneBackdrop,
 } from "./backgrounds.js";
 import { ensurePetVoiceAgent } from "./botnoi-client.js";
+import { startBotnoiCall, stopBotnoiCall } from "./botnoi-call.js";
+import { startPetStage, stopPetStage } from "./botnoi-stage.js";
 import { loadTalkMcpNote, mcpResultInstruction, usePetMcp } from "./mcp-talk.js";
 import { openPetMcp } from "./pet-mcp.js";
 
@@ -394,6 +396,7 @@ async function endTalkSession({ extract = false } = {}) {
   widgetUserMessagesHooked = false;
   stopChatCapture();
   chatLaunchToken++;
+  stopBotnoiTalk();
   activeChatPet = null;
   chatThemeObserver?.disconnect();
   talkControls?.destroy();
@@ -1052,9 +1055,23 @@ async function answerWithMcp(text) {
   }
 }
 
+function stopBotnoiTalk() {
+  stopBotnoiCall();
+  stopPetStage();
+}
+
+function botnoiCallError(kind) {
+  if (kind === "mic_denied" || kind === "no_mic") {
+    return "Allow the microphone, then try Talk again.";
+  }
+  if (kind === "key_rejected") return "The Botnoi call key was rejected. Check AI keys.";
+  return "Could not open the Botnoi call.";
+}
+
 export async function launchPetChat(pet) {
   const config = getPetConfig(pet.petType, petGender(pet));
   const launchToken = ++chatLaunchToken;
+  stopBotnoiTalk();
 
   pausePainterScene();
 
@@ -1113,10 +1130,9 @@ export async function launchPetChat(pet) {
     backgroundId,
   );
   document.querySelector("#talkPetName").textContent = pet.name;
-  localizeText(
-    document.querySelector("#chatStatus"),
-    "Getting ready to say hello…",
-  );
+  const status = document.querySelector("#chatStatus");
+  status?.classList.remove("hidden");
+  localizeText(status, "Getting ready to say hello…");
 
   petHubScreen.classList.add("hidden");
   petHubScreen.style.display = "none";
@@ -1133,28 +1149,79 @@ export async function launchPetChat(pet) {
   if (launchToken !== chatLaunchToken) return;
   const greeting = currentChatGreeting();
 
-  // Prefer a per-pet Botnoi agent (with this account's MCP tools) when the
-  // Voice API token is configured; otherwise keep the shared species widget.
+  // Prefer a per-pet Botnoi agent. When the call key is saved, talk goes
+  // through preview_call instead of the shared Gemini widget.
   let widgetId = config.widgetId;
+  let ensured = null;
   try {
-    const ensured = await ensurePetVoiceAgent(pet, {
+    ensured = await ensurePetVoiceAgent(pet, {
       personality: greeting,
       language: getLanguage(),
     });
-    if (ensured?.agentId) {
-      widgetId = ensured.agentId;
-      if (pet.botnoiAgentId !== ensured.agentId) {
-        pet.botnoiAgentId = ensured.agentId;
-        activeChatPet = pet;
-        try {
-          await savePet({ ...pet, botnoiAgentId: ensured.agentId });
-        } catch (err) {
-          console.warn("[TalkingMomo] could not persist botnoiAgentId:", err);
-        }
+    if (ensured?.agentId && pet.botnoiAgentId !== ensured.agentId) {
+      pet.botnoiAgentId = ensured.agentId;
+      activeChatPet = pet;
+      try {
+        await savePet({ ...pet, botnoiAgentId: ensured.agentId });
+      } catch (err) {
+        console.warn("[TalkingMomo] could not persist botnoiAgentId:", err);
       }
     }
   } catch (err) {
     console.warn("[TalkingMomo] pet agent ensure skipped:", err);
+  }
+  if (launchToken !== chatLaunchToken) return;
+
+  if (ensured?.agentId && ensured.apiKey && ensured.wssUrl) {
+    if (window.ChatWidget?.destroy) {
+      try {
+        await window.ChatWidget.destroy();
+      } catch {
+        /* widget was not up */
+      }
+    }
+    document.getElementById("webavatar-jssdk")?.remove();
+    const chatContainer = document.querySelector("#chatWidgetContainer");
+    if (chatContainer) chatContainer.innerHTML = "";
+    localizeText(status, "Connecting the voice…");
+    startPetStage(chatContainer, vrmBlobUrl);
+    let lastAgentLine = "";
+    startBotnoiCall({
+      wssUrl: ensured.wssUrl,
+      apiKey: ensured.apiKey,
+      agentId: ensured.agentId,
+      onReady: () => {
+        if (launchToken !== chatLaunchToken) return;
+        status?.classList.add("hidden");
+      },
+      onTurn: (who, text, final) => {
+        if (launchToken !== chatLaunchToken) return;
+        if (who === "user") {
+          if (!final) return;
+          pushCapturedTurn({ sender: "user", text });
+        } else {
+          lastAgentLine = text;
+          return;
+        }
+        if (isChatLogOpen()) renderChatLog(currentTurns());
+      },
+      onAgentSpeaking: (speaking) => {
+        if (speaking || !lastAgentLine || launchToken !== chatLaunchToken) return;
+        pushCapturedTurn({ sender: "bot", text: lastAgentLine });
+        lastAgentLine = "";
+        if (isChatLogOpen()) renderChatLog(currentTurns());
+      },
+      onError: (kind) => {
+        if (launchToken !== chatLaunchToken) return;
+        status?.classList.remove("hidden");
+        localizeText(status, botnoiCallError(kind));
+      },
+    });
+    return;
+  }
+
+  if (ensured?.agentId && !ensured.apiKey) {
+    notify("Add the Botnoi call key in AI keys, then try Talk again.");
   }
 
   window.ChatWidgetConfig = {

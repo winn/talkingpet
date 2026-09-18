@@ -513,19 +513,19 @@
         <section id="adminKeysPanel" class="admin-panel" hidden>
           <h2>AI keys</h2>
           <p class="admin-lead">
-            Provider keys used to make music and sounds. Saved keys take effect
-            right away and are never shown again; they are checked with the
-            provider before saving.
+            Provider keys for music, sounds, and Botnoi voice. Saved keys take
+            effect right away and are never shown again; they are checked with
+            the provider before saving.
           </p>
           <div id="adminKeyCards" class="admin-list"></div>
         </section>
         <section id="adminVoicePanel" class="admin-panel" hidden>
           <h2>Voice agents &amp; tools</h2>
           <p class="admin-lead">
-            Proxies the Botnoi Voice API
-            (<code>POST /platform-config/tools</code> and
-            <code>PUT /agent/create_update_agent</code>. Needs
-            <code>BOTNOI_VOICE_TOKEN</code> on the server.
+            Talking creates a new agent on Botnoi Voice and registers the pet’s
+            MCP tools. Add the console token and the call key in
+            <strong>AI keys</strong>. <code>BOTNOI_VOICE_TOKEN</code> and
+            <code>BOTNOI_CONNECTOR_KEY</code> on the server are only fallbacks.
           </p>
           <div class="admin-toolbar">
             <button id="adminRefreshVoiceBtn" type="button" class="secondary">
@@ -1451,9 +1451,16 @@
               <button id="mcpAddBtn" type="submit" class="secondary">
                 <span data-i18n="Add MCP">Add MCP</span>
               </button>
+              <button id="mcpTestBtn" type="button" class="secondary">
+                <span data-i18n="Test">Test</span>
+              </button>
               <button id="mcpCancelEdit" type="button" class="text-button" hidden>
                 <span data-i18n="Cancel">Cancel</span>
               </button>
+            </div>
+            <div id="mcpTestPanel" class="mcp-test" hidden>
+              <div id="mcpTestSamples" class="mcp-test-samples"></div>
+              <pre id="mcpTestResult" class="mcp-test-result" hidden></pre>
             </div>
           </form>
           <p id="mcpMessage" class="coupon-message" role="status" hidden></p>

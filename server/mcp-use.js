@@ -208,6 +208,44 @@ export function buildArguments(tool, userText) {
 }
 
 /**
+ * Map the form's sample values onto the remote tool's real argument names.
+ * A single text field such as จังหวัด is sent as the tool's city argument.
+ */
+export function mapSampleArgs(tool, userSchema, sample = {}) {
+  const props = schemaOf(tool)?.properties || {};
+  const names = Object.keys(props);
+  const userProps =
+    userSchema?.properties && typeof userSchema.properties === "object" && !Array.isArray(userSchema.properties)
+      ? userSchema.properties
+      : {};
+  const userNames = Object.keys(userProps).slice(0, 20);
+  const provided = userNames
+    .map((name) => String(sample?.[name] ?? "").trim())
+    .filter(Boolean);
+  const stringNames = names.filter((name) => String(props[name]?.type || "string") === "string");
+  const args = {};
+  for (const name of names) {
+    const spec = props[name] && typeof props[name] === "object" ? props[name] : {};
+    const type = String(spec.type || "string");
+    let raw = sample?.[name] != null ? String(sample[name]).trim() : "";
+    if (!raw && type === "string" && provided.length === 1) {
+      const blob = `${name} ${spec.description || ""} ${userNames.join(" ")}`;
+      if (stringNames.length === 1 || PLACE_PARAM.test(blob)) raw = provided[0];
+    }
+    if (!raw) continue;
+    if (type === "integer" || type === "number") {
+      const n = Number(raw);
+      if (Number.isFinite(n)) args[name] = type === "integer" ? Math.trunc(n) : n;
+    } else if (type === "boolean") {
+      args[name] = /^(1|true|yes|ใช่)$/i.test(raw);
+    } else {
+      args[name] = raw.slice(0, 200);
+    }
+  }
+  return args;
+}
+
+/**
  * First linked server whose when-clause matches, and the tool on that server to call.
  * `servers` items: { id, name, description, when, tools }.
  */

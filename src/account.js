@@ -3,6 +3,7 @@ import {
   createMcpServer,
   deleteMcpServer,
   listMcpServers,
+  testMcpServer,
   updateMcpServer,
 } from "./botnoi-client.js";
 import {
@@ -953,6 +954,99 @@ function setMcpMessage(message, success = false) {
   box.classList.toggle("is-success", success);
 }
 
+function readTestSample() {
+  const sample = {};
+  document.querySelectorAll("#mcpTestSamples [data-sample]").forEach((input) => {
+    sample[input.dataset.sample] = input.value.trim();
+  });
+  return sample;
+}
+
+function ensureTestSamples(schema) {
+  const panel = $("#mcpTestPanel");
+  const box = $("#mcpTestSamples");
+  if (panel) panel.hidden = false;
+  if (!box) return {};
+  const props = schema?.properties && typeof schema.properties === "object" ? schema.properties : {};
+  const names = Object.keys(props);
+  const current = [...box.querySelectorAll("[data-sample]")].map((input) => input.dataset.sample).join("\0");
+  if (current !== names.join("\0")) {
+    const place = /จังหวัด|city|province|เมือง|town|location/i;
+    box.innerHTML = names
+      .map((name) => {
+        const value = place.test(name) ? "กรุงเทพ" : "";
+        return `<label class="mcp-test-sample"><span>${escapeHtml(name)}</span><input data-sample="${escapeHtml(name)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(t("Test value"))}" /></label>`;
+      })
+      .join("");
+  }
+  return readTestSample();
+}
+
+function showTestResult(text) {
+  const pre = $("#mcpTestResult");
+  if (!pre) return;
+  pre.hidden = !text;
+  pre.textContent = text || "";
+}
+
+async function runMcpFormTest() {
+  const url = $("#mcpUrl")?.value.trim() || "";
+  if (!url) {
+    setMcpMessage(t("Name and URL are required."));
+    return;
+  }
+  let parameters;
+  try {
+    parameters = collectParameters();
+  } catch (err) {
+    setMcpMessage(err instanceof Error ? err.message : t("Parameters must be JSON."));
+    return;
+  }
+  const sample = ensureTestSamples(parameters);
+  const missing = (parameters.required || []).find((name) => !sample[name]);
+  if (missing) {
+    setMcpMessage(t("Fill in {name}, then test again.", { name: missing }));
+    showTestResult("");
+    return;
+  }
+  const button = $("#mcpTestBtn");
+  if (button) button.disabled = true;
+  setMcpMessage(t("Testing the MCP server…"));
+  showTestResult("");
+  try {
+    const authValue = $("#mcpAuthValue")?.value.trim() || "";
+    const data = await testMcpServer({
+      url,
+      description: $("#mcpDescription")?.value.trim() || "",
+      parameters,
+      sample,
+      ...(authValue ? { authValue, authHeader: "Authorization" } : {}),
+    });
+    const lines = [];
+    if (data.tools?.length) lines.push(t("Connected. Tools: {tools}", { tools: data.tools.join(", ") }));
+    else lines.push(t("Connected, but this server listed no tools."));
+    if (data.tool) {
+      lines.push(t("Called {tool}", { tool: data.tool }));
+      lines.push(t("Sent {args}", { args: JSON.stringify(data.arguments || {}) }));
+    } else if ((data.tools || []).length > 1) {
+      lines.push(t("Could not tell which tool to call. Make the description clearer."));
+    }
+    if (data.result) lines.push("", data.result);
+    if (!data.ok && data.error) lines.push("", data.error);
+    showTestResult(lines.join("\n"));
+    setMcpMessage(
+      data.ok ? t("Connected. Tools: {tools}", { tools: (data.tools || []).join(", ") || "—" }) : data.error || t("Could not test the MCP server."),
+      Boolean(data.ok),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : t("Could not test the MCP server.");
+    showTestResult(message);
+    setMcpMessage(message);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 async function loadMcpServers() {
   const list = $("#mcpList");
   if (!list) return;
@@ -993,6 +1087,11 @@ function clearMcpForm() {
   $("#mcpDescription").value = "";
   setParamMode("form", { type: "object", properties: {}, required: [] });
   $("#mcpCancelEdit").hidden = true;
+  const panel = $("#mcpTestPanel");
+  if (panel) panel.hidden = true;
+  const samples = $("#mcpTestSamples");
+  if (samples) samples.innerHTML = "";
+  showTestResult("");
   localizeText($("#mcpAddBtn").querySelector("span"), "Add MCP");
 }
 
@@ -1070,6 +1169,9 @@ function bindMcpForm() {
   $("#mcpCancelEdit")?.addEventListener("click", () => {
     clearMcpForm();
     setMcpMessage(null);
+  });
+  $("#mcpTestBtn")?.addEventListener("click", () => {
+    void runMcpFormTest();
   });
   $("#mcpAddParam")?.addEventListener("click", () => {
     renderParamRows([...readParamRows(), { name: "", type: "string", required: true, description: "" }]);
@@ -1346,6 +1448,18 @@ const PROVIDER_COPY = {
     placeholder: "AIza…",
     envVar: "GEMINI_API_KEY",
   },
+  botnoi: {
+    name: "Botnoi",
+    blurb: "Console session token. Creates a new voice agent for each pet and registers that pet’s MCP tools.",
+    placeholder: "Bearer token",
+    envVar: "BOTNOI_VOICE_TOKEN",
+  },
+  botnoi_call: {
+    name: "Botnoi call",
+    blurb: "Connector key for the live call. This is not the console token. The browser uses it to open preview_call, the same way Talking Jelly does.",
+    placeholder: "Connector api key",
+    envVar: "BOTNOI_CONNECTOR_KEY",
+  },
 };
 
 let keyStatuses = {};
@@ -1409,7 +1523,8 @@ function bindAdminKeys() {
     event.preventDefault();
     const provider = form.closest(".key-card")?.dataset.provider;
     const key = form.elements.key.value.trim();
-    if (key.length < 10) return setAdminMessage("error", "Paste the whole key.");
+    const min = provider === "botnoi" || provider === "botnoi_call" ? 8 : 10;
+    if (key.length < min) return setAdminMessage("error", "Paste the whole key.");
     const button = form.querySelector("button[type=submit]");
     button.disabled = true;
     button.textContent = "Checking…";

@@ -1,9 +1,9 @@
 import { json, jsonError, readJson } from "../../server/http.js";
 import {
-  botnoiConfigured,
   createTool,
   deleteTool,
   mcpToolPayload,
+  resolveBotnoiToken,
   updateTool,
 } from "../../server/botnoi.js";
 import { adminClient, userClient, userFromRequest } from "../../server/supabase.js";
@@ -59,9 +59,10 @@ export async function POST(request) {
   const authHeader = String(body.authHeader || body.auth_header || "").trim() || null;
   const authValue = String(body.authValue || body.auth_value || body.api_key || "").trim() || null;
   const toolName = botnoiToolName(user.id, name);
+  const token = await resolveBotnoiToken(db);
 
   let botnoiToolId = null;
-  if (botnoiConfigured()) {
+  if (token) {
     try {
       const created = await createTool(
         mcpToolPayload({
@@ -73,6 +74,7 @@ export async function POST(request) {
           parameters,
           parameterHint,
         }),
+        { token },
       );
       botnoiToolId = extractToolId(created);
     } catch (err) {
@@ -101,7 +103,7 @@ export async function POST(request) {
   if (error) {
     if (botnoiToolId) {
       try {
-        await deleteTool(botnoiToolId);
+        await deleteTool(botnoiToolId, { token });
       } catch {}
     }
     return jsonError("db", error.message, 500);
@@ -164,16 +166,17 @@ export async function PUT(request) {
     parameters,
     parameterHint,
   });
+  const token = await resolveBotnoiToken(db);
 
-  if (botnoiConfigured()) {
+  if (token) {
     try {
       if (existing.botnoi_tool_id) {
         await updateTool(existing.botnoi_tool_id, {
           ...payload,
           status,
-        });
+        }, { token });
       } else {
-        const created = await createTool(payload);
+        const created = await createTool(payload, { token });
         existing.botnoi_tool_id = extractToolId(created);
       }
     } catch (err) {
@@ -221,10 +224,13 @@ export async function DELETE(request) {
   if (readError) return jsonError("db", readError.message, 500);
   if (!existing) return jsonError("not_found", "MCP server not found.", 404);
 
-  if (existing.botnoi_tool_id && botnoiConfigured()) {
-    try {
-      await deleteTool(existing.botnoi_tool_id);
-    } catch {}
+  if (existing.botnoi_tool_id) {
+    const token = await resolveBotnoiToken(db);
+    if (token) {
+      try {
+        await deleteTool(existing.botnoi_tool_id, { token });
+      } catch {}
+    }
   }
   const { error } = await db
     .from("mcp_servers")
