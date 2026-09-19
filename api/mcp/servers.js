@@ -6,7 +6,12 @@ import {
   mcpToolPayload,
   updateTool,
 } from "../../server/botnoi.js";
-import { adminClient, userFromRequest } from "../../server/supabase.js";
+import { adminClient, userClient, userFromRequest } from "../../server/supabase.js";
+
+/** Service role when present; otherwise the signed-in user, enforced by RLS. */
+function dbFor(request) {
+  return adminClient() ?? userClient(request);
+}
 
 /**
  * User-facing MCP connections for their pets.
@@ -19,7 +24,7 @@ import { adminClient, userFromRequest } from "../../server/supabase.js";
 export async function GET(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const admin = adminClient();
+  const admin = dbFor(request);
   if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
   const { data, error } = await admin
     .from("mcp_servers")
@@ -35,14 +40,8 @@ export async function GET(request) {
 export async function POST(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const admin = adminClient();
+  const admin = dbFor(request);
   if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
-  if (!botnoiConfigured())
-    return jsonError(
-      "missing_botnoi_token",
-      "Set BOTNOI_VOICE_TOKEN on the server first.",
-      400,
-    );
 
   const body = await readJson(request);
   const name = sanitizeName(body.name);
@@ -57,19 +56,21 @@ export async function POST(request) {
   const toolName = botnoiToolName(user.id, name);
 
   let botnoiToolId = null;
-  try {
-    const created = await createTool(
-      mcpToolPayload({
-        name: toolName,
-        description,
-        url,
-        authHeader,
-        authValue,
-      }),
-    );
-    botnoiToolId = extractToolId(created);
-  } catch (err) {
-    return botnoiError(err);
+  if (botnoiConfigured()) {
+    try {
+      const created = await createTool(
+        mcpToolPayload({
+          name: toolName,
+          description,
+          url,
+          authHeader,
+          authValue,
+        }),
+      );
+      botnoiToolId = extractToolId(created);
+    } catch (err) {
+      return botnoiError(err);
+    }
   }
 
   const { data, error } = await admin
@@ -104,7 +105,7 @@ export async function POST(request) {
 export async function PUT(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const admin = adminClient();
+  const admin = dbFor(request);
   if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
   if (!botnoiConfigured())
     return jsonError(
@@ -191,7 +192,7 @@ export async function PUT(request) {
 export async function DELETE(request) {
   const user = await userFromRequest(request);
   if (!user) return jsonError("sign_in", "Sign in first.", 401);
-  const admin = adminClient();
+  const admin = dbFor(request);
   if (!admin) return jsonError("not_configured", "Server is not configured.", 500);
   const id = new URL(request.url).searchParams.get("id") || "";
   if (!id.trim()) return jsonError("bad_request", "id is required.", 400);
