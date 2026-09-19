@@ -1,15 +1,33 @@
 import { getSession } from "./auth.js";
 
-/** Tell the live model to speak a tool result it cannot fetch itself. */
-export function mcpResultInstruction({ userText, tool, serverName, result, language = "en" }) {
-  const reply =
+/** The line the pet should say, and an instruction that puts that line first. */
+export function mcpPetReply({ result, error, ok, language = "en" } = {}) {
+  const raw = String((ok ? result : error || result) || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  let chatText = raw;
+  if (!chatText) {
+    chatText = language === "th" ? "เครื่องมือไม่ตอบ" : "The tool returned nothing.";
+  } else if (language === "th" && /Could not reach the ESP32 kit/i.test(raw)) {
+    chatText = "เรียกเครื่องมือแล้ว แต่ยังต่อชุดอุปกรณ์ไม่ได้";
+  } else if (language === "th" && /^Temperature /i.test(raw)) {
+    chatText = raw
+      .replace(/^Temperature\s+/i, "อุณหภูมิ ")
+      .replace(/°C,\s*humidity\s+/i, " องศา ความชื้น ")
+      .replace(/%,\s*light\s+/i, " เปอร์เซ็นต์ แสง ")
+      .replace(/\.\s*LED 15 /i, " ไฟ 15 ")
+      .replace(/,\s*LED 16 /i, " ไฟ 16 ")
+      .replace(/,\s*LED 17 /i, " ไฟ 17 ")
+      .replace(/\.\s*Buzzer /i, " ออด ")
+      .replace(/\.\s*RGB /i, " ไฟสี ")
+      .replace(/\bon\b/g, "เปิด")
+      .replace(/\boff\b/g, "ปิด");
+  }
+  const instruction =
     language === "th"
-      ? "พูดคำตอบเป็นภาษาไทยทันที ห้ามทักทายใหม่"
-      : "Say the answer immediately. Do not greet again.";
-  return (
-    `\n\n${reply} The person just asked: "${String(userText || "").slice(0, 300)}". ` +
-    `You already called ${tool} (${serverName}). Say only this result out loud. Do not say you do not know, and do not invent facts:\n${result}`
-  );
+      ? `ตอบด้วยประโยคนี้เท่านั้น ห้ามทักทาย ห้ามบอกว่าไม่รู้ ห้ามแต่งนิทาน: ${chatText}`
+      : `Say only this sentence. Do not greet, do not say you do not know, and do not start a story: ${chatText}`;
+  return { chatText, instruction };
 }
 
 /** Run the pet's linked MCP servers against one spoken or typed line. */

@@ -84,7 +84,7 @@ import {
   applyTalkSceneBackdrop,
 } from "./backgrounds.js";
 import { ensurePetVoiceAgent, listMcpServers } from "./botnoi-client.js";
-import { mcpResultInstruction, usePetMcp } from "./mcp-talk.js";
+import { mcpPetReply, usePetMcp } from "./mcp-talk.js";
 
 // Prevent mobile browser page zoom while preserving canvas pinch gestures
 initPreventPageZoom();
@@ -1020,29 +1020,21 @@ async function answerWithMcp(text) {
       return false;
     }
     mcpHandledTurns.add(line);
-    if (!used.ok || !used.result) {
-      if (status) localizeText(status, "Could not use {name}.", { name: used.serverName || "tool" });
-      return false;
-    }
-    talkMcpResult = mcpResultInstruction({
-      userText: line,
-      tool: used.tool,
-      serverName: used.serverName,
+    const spoken = mcpPetReply({
+      ok: Boolean(used.ok && used.result),
       result: used.result,
+      error: used.error,
       language: getLanguage(),
     });
-    const greetingInstruction = `${buildChatGreeting(pet, getLanguage(), activeMemories)}${talkMcpResult}`;
-    if (window.ChatWidgetConfig) window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
-    pushCapturedTurn({ sender: "bot", text: used.result, timestamp: Date.now() });
+    talkMcpResult = "";
+    pushCapturedTurn({ sender: "bot", text: spoken.chatText, timestamp: Date.now() });
     if (isChatLogOpen()) renderChatLog(currentTurns());
-    if (status) localizeText(status, "Got it from {name}. Saying it now…", { name: used.serverName || used.tool });
-    if (window.ChatWidget && typeof window.ChatWidget.updateConfig === "function") {
-      await window.ChatWidget.updateConfig({
-        ...window.ChatWidgetConfig,
-        greetingInstruction,
-      });
-      widgetUserMessagesHooked = false;
-      hookWidgetUserMessages();
+    if (status) {
+      localizeText(
+        status,
+        used.ok && used.result ? "Got it from {name}. Saying it now…" : "Could not use {name}.",
+        { name: used.serverName || used.tool || "tool" },
+      );
     }
     return true;
   } catch (err) {
