@@ -299,8 +299,21 @@ export const TH = {
   "MCP tools": "เครื่องมือ MCP",
   "Add an MCP server here. It will be attached the next time you talk to a pet.":
     "เพิ่มเซิร์ฟเวอร์ MCP ที่นี่ จะถูกผูกตอนคุยกับสัตว์เลี้ยงครั้งถัดไป",
-  "Add a remote MCP server by name and URL, the same way Claude adds a custom connector. Your pets can use it the next time you talk.":
-    "เพิ่มเซิร์ฟเวอร์ MCP ด้วยชื่อและ URL แบบเดียวกับ custom connector ของ Claude สัตว์เลี้ยงจะใช้ได้ตอนคุยครั้งถัดไป",
+  "Add a remote MCP server by name and URL, the same way Claude adds a custom connector. Then open a pet and tap Give tools.":
+    "เพิ่มเซิร์ฟเวอร์ MCP ด้วยชื่อและ URL แบบเดียวกับ custom connector ของ Claude แล้วเปิดสัตว์เลี้ยงแล้วกด ให้ใช้เครื่องมือ",
+  "Give tools": "ให้ใช้เครื่องมือ",
+  "Give tools to": "ให้เครื่องมือกับ",
+  "Cancel": "ยกเลิก",
+  "Save": "บันทึก",
+  "Could not save.": "บันทึกไม่ได้",
+  "Check a connector to let this pet use it while talking. Add a connector in your account first.":
+    "ติ๊กตัวเชื่อมที่อยากให้ตัวนี้ใช้ตอนคุย ถ้ายังไม่มี ให้เพิ่มที่บัญชีก่อน",
+  "Add a connector": "เพิ่มตัวเชื่อม",
+  "Call when they ask about this": "เรียกเมื่อถามเรื่องนี้",
+  "This pet can use those tools now.": "ตัวนี้ใช้เครื่องมือเหล่านี้ได้แล้ว",
+  "Checking a tool…": "กำลังถามเครื่องมือ…",
+  "Could not use {name}.": "ใช้ {name} ไม่ได้",
+  "Got it from {name}. Saying it now…": "ได้คำตอบจาก {name} แล้ว กำลังพูด…",
   "Add custom connector": "เพิ่มตัวเชื่อมต่อแบบกำหนดเอง",
   "Name": "ชื่อ",
   "My connector": "ตัวเชื่อมของฉัน",

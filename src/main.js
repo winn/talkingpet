@@ -83,7 +83,8 @@ import {
   applyBackdrop,
   applyTalkSceneBackdrop,
 } from "./backgrounds.js";
-import { ensurePetVoiceAgent } from "./botnoi-client.js";
+import { ensurePetVoiceAgent, listMcpServers } from "./botnoi-client.js";
+import { mcpResultInstruction, usePetMcp } from "./mcp-talk.js";
 
 // Prevent mobile browser page zoom while preserving canvas pinch gestures
 initPreventPageZoom();
@@ -114,6 +115,10 @@ let chatLaunchToken = 0;
 let chatThemeObserver;
 let talkControls = null;
 let activeChatPet = null;
+let talkMcpResult = "";
+let mcpTurnBusy = false;
+const mcpHandledTurns = new Set();
+let petToolsPet = null;
 let lastPets = null;
 let strokeSnapshot = null;
 let strokeChanged = false;
@@ -350,6 +355,12 @@ function initHubEvents() {
   backToPaintBtn.addEventListener("click", closePromptWorkshop);
   savePetBtn.addEventListener("click", () => handleSavePet());
   cancelDeleteBtn.addEventListener("click", closeDeleteModal);
+  document.querySelector("#petToolsCancelBtn")?.addEventListener("click", closePetTools);
+  document.querySelector("#petToolsSaveBtn")?.addEventListener("click", () => savePetTools());
+  document.querySelector("#petToolsAccountBtn")?.addEventListener("click", () => {
+    closePetTools();
+    openAccountSheet("mcp");
+  });
   confirmDeleteBtn.addEventListener("click", async () => {
     confirmDeleteBtn.disabled = true;
     try {
@@ -679,7 +690,7 @@ function renderPetGrid(pets) {
       const config = getPetConfig(pet.petType, petGender(pet));
       const card = document.createElement("article");
       card.className = "pet-card";
-      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
+      card.innerHTML = `<div class="pet-card-header"><div><h3>${escapeHtml(pet.name)}</h3><span class="pet-type-label">${t(config.label)}</span></div><button class="delete-btn" aria-label="${escapeHtml(t("Delete {name}", { name: pet.name }))}" title="${t("Delete pet")}">×</button></div><div class="pet-preview"><div class="rotator"></div></div><p class="pet-description"></p><div class="pet-actions"><button class="edit-colors-btn secondary"><svg><use href="#i-brush"/></svg>${t("Edit colors")}</button><button class="edit-prompt-btn secondary"><svg><use href="#i-spark"/></svg>${t("Edit prompt")}</button><button class="pet-tools-btn secondary">${t("Give tools")}</button><button class="talk-btn primary"><svg><use href="#i-chat"/></svg>${escapeHtml(t("Talk to {name}", { name: pet.name }))}</button></div>`;
       applyBackdrop(
         card.querySelector(".pet-preview"),
         normalizeBackground(pet.backgroundColor),
@@ -712,6 +723,9 @@ function renderPetGrid(pets) {
       card
         .querySelector(".edit-prompt-btn")
         .addEventListener("click", () => openPromptOnly(pet));
+      card
+        .querySelector(".pet-tools-btn")
+        .addEventListener("click", () => openPetTools(pet));
       card
         .querySelector(".talk-btn")
         .addEventListener("click", () =>
@@ -969,11 +983,136 @@ function hookWidgetUserMessages() {
       if (!activeChatPet) return;
       pushCapturedTurn({ sender: "user", text, timestamp: Date.now() });
       if (isChatLogOpen()) renderChatLog(currentTurns());
+      void answerWithMcp(text);
     });
   } catch (err) {
     widgetUserMessagesHooked = false;
     console.warn("[TalkingMomo] onUserMessage hook failed:", err);
   }
+}
+
+async function answerWithMcp(text) {
+  const pet = activeChatPet;
+  const line = String(text || "").trim();
+  if (!pet?.mcpLinks?.length || !line || mcpTurnBusy) return;
+  if (mcpHandledTurns.has(line)) return;
+  const status = document.querySelector("#chatStatus");
+  mcpTurnBusy = true;
+  if (status) localizeText(status, "Checking a tool…");
+  try {
+    const used = await usePetMcp(pet, line);
+    if (activeChatPet?.id !== pet.id) return;
+    if (!used?.matched) {
+      if (status) status.textContent = "";
+      return;
+    }
+    mcpHandledTurns.add(line);
+    if (!used.ok || !used.result) {
+      if (status) localizeText(status, "Could not use {name}.", { name: used.serverName || "tool" });
+      return;
+    }
+    talkMcpResult = mcpResultInstruction({
+      userText: line,
+      tool: used.tool,
+      serverName: used.serverName,
+      result: used.result,
+      language: getLanguage(),
+    });
+    const greetingInstruction = `${buildChatGreeting(pet, getLanguage(), activeMemories)}${talkMcpResult}`;
+    if (window.ChatWidgetConfig) window.ChatWidgetConfig.greetingInstruction = greetingInstruction;
+    pushCapturedTurn({ sender: "bot", text: used.result, timestamp: Date.now() });
+    if (isChatLogOpen()) renderChatLog(currentTurns());
+    if (status) localizeText(status, "Got it from {name}. Saying it now…", { name: used.serverName || used.tool });
+    if (window.ChatWidget && typeof window.ChatWidget.updateConfig === "function") {
+      await window.ChatWidget.updateConfig({
+        ...window.ChatWidgetConfig,
+        greetingInstruction,
+      });
+      widgetUserMessagesHooked = false;
+      hookWidgetUserMessages();
+    }
+  } catch (err) {
+    console.warn("[TalkingMomo] MCP call failed:", err);
+    if (status) localizeText(status, "Could not use {name}.", { name: "tool" });
+  } finally {
+    mcpTurnBusy = false;
+  }
+}
+
+async function openPetTools(pet) {
+  petToolsPet = pet;
+  const modal = document.querySelector("#petToolsModal");
+  const name = document.querySelector("#petToolsName");
+  const list = document.querySelector("#petToolsList");
+  const empty = document.querySelector("#petToolsEmpty");
+  if (name) name.textContent = pet.name || "";
+  if (list) list.innerHTML = "";
+  let servers = [];
+  try {
+    servers = await listMcpServers();
+  } catch (err) {
+    notify(err instanceof Error ? err.message : "Could not load MCP servers.");
+  }
+  const links = new Map(
+    (Array.isArray(pet.mcpLinks) ? pet.mcpLinks : []).map((link) => [link.serverId, link.when || ""]),
+  );
+  if (!servers.length) {
+    if (empty) empty.hidden = false;
+  } else if (list) {
+    if (empty) empty.hidden = true;
+    list.innerHTML = servers
+      .map((server) => {
+        const on = links.has(server.id);
+        return `<label class="pet-tool-row">
+          <span><input type="checkbox" data-server="${escapeHtml(server.id)}" ${on ? "checked" : ""}> ${escapeHtml(server.name)}</span>
+          <input type="text" data-when="${escapeHtml(server.id)}" value="${escapeHtml(links.get(server.id) || "")}" placeholder="${escapeHtml(t("Call when they ask about this"))}" ${on ? "" : "hidden"}>
+        </label>`;
+      })
+      .join("");
+    list.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+      box.addEventListener("change", () => {
+        const when = list.querySelector(`input[data-when="${box.dataset.server}"]`);
+        if (when) when.hidden = !box.checked;
+      });
+    });
+  }
+  modal?.classList.remove("hidden");
+  modal?.classList.add("grid");
+}
+
+async function savePetTools() {
+  const pet = petToolsPet;
+  const list = document.querySelector("#petToolsList");
+  if (!pet || !list) return;
+  const links = [];
+  list.querySelectorAll('input[type="checkbox"]:checked').forEach((box) => {
+    const when = list.querySelector(`input[data-when="${box.dataset.server}"]`);
+    links.push({
+      serverId: box.dataset.server,
+      when: String(when?.value || "").trim().slice(0, 300),
+    });
+  });
+  pet.mcpLinks = links;
+  if (activeChatPet?.id === pet.id) activeChatPet = pet;
+  const button = document.querySelector("#petToolsSaveBtn");
+  if (button) button.disabled = true;
+  try {
+    await savePet(pet);
+    closePetTools();
+    notify("This pet can use those tools now.");
+    await loadPetHub();
+  } catch (err) {
+    notify(err instanceof Error ? err.message : "Could not save.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function closePetTools() {
+  petToolsPet = null;
+  const modal = document.querySelector("#petToolsModal");
+  modal?.classList.add("hidden");
+  modal?.classList.remove("grid");
 }
 
 export async function launchPetChat(pet) {
@@ -1008,6 +1147,9 @@ export async function launchPetChat(pet) {
   activeChatPet = pet;
   talkStartedAt = Date.now();
   typedTurns = [];
+  talkMcpResult = "";
+  mcpHandledTurns.clear();
+  mcpTurnBusy = false;
   clearCapturedTurns();
   sessionTranscriptBackup = [];
   sessionRememberDone = false;
@@ -1048,7 +1190,7 @@ export async function launchPetChat(pet) {
   talkScreen.classList.remove("hidden");
   talkScreen.style.display = "flex";
 
-  const greeting = buildChatGreeting(pet, getLanguage(), activeMemories);
+  const greeting = `${buildChatGreeting(pet, getLanguage(), activeMemories)}${talkMcpResult}`;
 
   // Prefer a per-pet Botnoi agent (with this account's MCP tools) when the
   // Voice API token is configured; otherwise keep the shared species widget.
@@ -2898,7 +3040,10 @@ initChatLog({ onSend: sendTypedMessage, onExtract: extractChatToMemory });
 document.addEventListener("click", (event) => {
   if (event.target.closest("#talkMemoryBtn"))
     openMemorySheet({ petName: activeChatPet?.name || "" });
-  if (event.target.closest("#talkMcpBtn")) openAccountSheet("mcp");
+  if (event.target.closest("#talkMcpBtn")) {
+    if (activeChatPet) openPetTools(activeChatPet);
+    else openAccountSheet("mcp");
+  }
   if (event.target.closest("#talkChatBtn")) {
     if (isChatLogOpen()) closeChatLog();
     else {

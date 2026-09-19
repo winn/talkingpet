@@ -1376,10 +1376,9 @@
           <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
           <p class="memory-hint">
             <span
-              data-i18n="Add a remote MCP server by name and URL, the same way Claude adds a custom connector. Your pets can use it the next time you talk."
+              data-i18n="Add a remote MCP server by name and URL, the same way Claude adds a custom connector. Then open a pet and tap Give tools."
               >Add a remote MCP server by name and URL, the same way Claude
-              adds a custom connector. Your pets can use it the next time you
-              talk.</span
+              adds a custom connector. Then open a pet and tap Give tools.</span
             >
           </p>
           <form id="mcpForm" class="mcp-form">
@@ -1646,6 +1645,42 @@
         <div class="dialog-actions memory-footer">
           <button id="forgetAllBtn" type="button" class="text-button" hidden>
             <span data-i18n="Forget everything">Forget everything</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      id="petToolsModal"
+      class="overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="petToolsTitle"
+    >
+      <div class="dialog-card">
+        <h2 id="petToolsTitle">
+          <span data-i18n="Give tools to">Give tools to</span>
+          <span id="petToolsName">Momo</span>
+        </h2>
+        <p>
+          <span
+            data-i18n="Check a connector to let this pet use it while talking. Add a connector in your account first."
+            >Check a connector to let this pet use it while talking. Add a
+            connector in your account first.</span
+          >
+        </p>
+        <div id="petToolsList" class="pet-tools-list"></div>
+        <p id="petToolsEmpty" class="packs-hint" hidden>
+          <span data-i18n="No MCP servers yet.">No MCP servers yet.</span>
+        </p>
+        <div class="dialog-actions">
+          <button id="petToolsAccountBtn" type="button" class="secondary">
+            <span data-i18n="Add a connector">Add a connector</span>
+          </button>
+          <button id="petToolsCancelBtn" type="button" class="secondary">
+            <span data-i18n="Cancel">Cancel</span>
+          </button>
+          <button id="petToolsSaveBtn" type="button" class="primary">
+            <span data-i18n="Save">Save</span>
           </button>
         </div>
       </div>

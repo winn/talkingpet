@@ -548,7 +548,8 @@ input[type="color"]::-webkit-color-swatch {
   gap: 8px;
   margin-top: auto;
 }
-.pet-actions .talk-btn {
+.pet-actions .talk-btn,
+.pet-actions .pet-tools-btn {
   grid-column: 1/-1;
 }
 .pet-actions button {
@@ -556,6 +557,29 @@ input[type="color"]::-webkit-color-swatch {
 }
 .pet-actions svg {
   width: 16px;
+}
+.pet-tools-list {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  text-align: left;
+}
+.pet-tool-row {
+  display: grid;
+  gap: 6px;
+}
+.pet-tool-row span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 800;
+}
+.pet-tool-row input[type="text"] {
+  min-height: 40px;
+  border: 1.5px solid #e3cdb5;
+  border-radius: 12px;
+  padding: 0 10px;
+  font: inherit;
 }
 .hub-footer {
   border-top: 1px solid var(--line);
