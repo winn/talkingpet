@@ -46,12 +46,14 @@ export async function POST(request) {
 
   const body = await readJson(request);
   const name = sanitizeName(body.name);
-  const url = String(body.url || "").trim();
-  if (!name || !url)
+  const url = httpsUrl(body.url);
+  if (!name || !String(body.url || "").trim())
     return jsonError("bad_request", "name and url are required.", 400);
+  if (!url) return jsonError("bad_request", "MCP server URL must start with https.", 400);
   const description = String(body.description || "").trim().slice(0, 500);
-  const authHeader = String(body.authHeader || body.auth_header || "").trim() || null;
-  const authValue = String(body.authValue || body.auth_value || body.api_key || "").trim() || null;
+  const header = cleanHeader(body);
+  if (header.error) return jsonError("bad_request", header.error, 400);
+  const { authHeader, authValue } = header;
   const toolName = botnoiToolName(user.id, name);
 
   let botnoiToolId = null;
@@ -215,6 +217,26 @@ export async function DELETE(request) {
     .eq("user_id", user.id);
   if (error) return jsonError("db", error.message, 500);
   return json({ ok: true });
+}
+
+function httpsUrl(value) {
+  const raw = String(value || "").trim();
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" ? raw : "";
+  } catch {
+    return "";
+  }
+}
+
+function cleanHeader(body) {
+  const authValue = String(body.authValue || body.auth_value || body.api_key || "").trim();
+  const authHeader = String(body.authHeader || body.auth_header || "").trim();
+  if (!authValue) return { authHeader: null, authValue: null };
+  if (!/^[A-Za-z0-9-]{1,80}$/.test(authHeader)) {
+    return { error: "Header name is not allowed." };
+  }
+  return { authHeader, authValue: authValue.slice(0, 2000) };
 }
 
 function sanitizeName(value) {

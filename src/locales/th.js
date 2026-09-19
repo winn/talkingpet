@@ -299,10 +299,23 @@ export const TH = {
   "MCP tools": "เครื่องมือ MCP",
   "Add an MCP server here. It will be attached the next time you talk to a pet.":
     "เพิ่มเซิร์ฟเวอร์ MCP ที่นี่ จะถูกผูกตอนคุยกับสัตว์เลี้ยงครั้งถัดไป",
-  "Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created.":
-    "เชื่อมต่อเซิร์ฟเวอร์ MCP เพื่อให้สัตว์เลี้ยงใช้เครื่องมือได้ตอนคุย แต่ละการเชื่อมต่อจะลงทะเบียนเป็นเครื่องมือ Botnoi และผูกตอนสร้าง agent ของสัตว์เลี้ยง",
-  "Add MCP": "เพิ่ม MCP",
-  "Optional API key": "API key (ถ้ามี)",
+  "Add a remote MCP server by name and URL, the same way Claude adds a custom connector. Your pets can use it the next time you talk.":
+    "เพิ่มเซิร์ฟเวอร์ MCP ด้วยชื่อและ URL แบบเดียวกับ custom connector ของ Claude สัตว์เลี้ยงจะใช้ได้ตอนคุยครั้งถัดไป",
+  "Add custom connector": "เพิ่มตัวเชื่อมต่อแบบกำหนดเอง",
+  "Name": "ชื่อ",
+  "My connector": "ตัวเชื่อมของฉัน",
+  "MCP server URL": "URL ของเซิร์ฟเวอร์ MCP",
+  "Request headers": "ส่วนหัวคำขอ",
+  "The value is sent exactly as you type it. For Authorization, include the scheme, such as Bearer token.":
+    "ส่งค่าตามที่พิมพ์เป๊ะ ๆ สำหรับ Authorization ให้ใส่รูปแบบด้วย เช่น Bearer token",
+  "Header name": "ชื่อส่วนหัว",
+  "Custom header name": "ชื่อส่วนหัวที่กำหนดเอง",
+  "Custom header": "ส่วนหัวที่กำหนดเอง",
+  "Header value": "ค่าส่วนหัว",
+  "Add": "เพิ่ม",
+  "{kind} · Detected": "{kind} · ตรวจพบ",
+  "MCP server URL must start with https.": "URL ของเซิร์ฟเวอร์ MCP ต้องขึ้นต้นด้วย https",
+  "Header name is not allowed.": "ชื่อส่วนหัวนี้ใช้ไม่ได้",
   "No MCP servers yet.": "ยังไม่มีเซิร์ฟเวอร์ MCP",
   "MCP server connected.": "เชื่อมต่อ MCP แล้ว",
   "MCP server removed.": "ลบ MCP แล้ว",

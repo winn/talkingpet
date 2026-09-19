@@ -1376,39 +1376,92 @@
           <h3><span data-i18n="MCP tools for your pets">MCP tools for your pets</span></h3>
           <p class="memory-hint">
             <span
-              data-i18n="Connect MCP servers so your pets can use their tools while talking. Each connection is registered as a Botnoi tool and attached when a pet agent is created."
-              >Connect MCP servers so your pets can use their tools while
-              talking. Each connection is registered as a Botnoi tool and
-              attached when a pet agent is created.</span
+              data-i18n="Add a remote MCP server by name and URL, the same way Claude adds a custom connector. Your pets can use it the next time you talk."
+              >Add a remote MCP server by name and URL, the same way Claude
+              adds a custom connector. Your pets can use it the next time you
+              talk.</span
             >
           </p>
-          <form id="mcpForm" class="coupon-form mcp-form">
-            <input
-              id="mcpName"
-              type="text"
-              maxlength="60"
-              required
-              placeholder="Name"
-              aria-label="MCP name"
-              data-i18n-placeholder="Name"
-            />
-            <input
-              id="mcpUrl"
-              type="url"
-              required
-              placeholder="https://…"
-              aria-label="MCP server URL"
-            />
-            <input
-              id="mcpAuthValue"
-              type="password"
-              autocomplete="off"
-              placeholder="Optional API key"
-              aria-label="Optional API key"
-              data-i18n-placeholder="Optional API key"
-            />
+          <form id="mcpForm" class="mcp-form">
+            <p class="mcp-form-title">
+              <span data-i18n="Add custom connector">Add custom connector</span>
+            </p>
+            <label class="mcp-field">
+              <span data-i18n="Name">Name</span>
+              <input
+                id="mcpName"
+                type="text"
+                maxlength="60"
+                required
+                autocomplete="off"
+                placeholder="My connector"
+                aria-label="Name"
+                data-i18n-placeholder="My connector"
+                data-i18n-aria-label="Name"
+              />
+            </label>
+            <label class="mcp-field">
+              <span data-i18n="MCP server URL">MCP server URL</span>
+              <input
+                id="mcpUrl"
+                type="url"
+                required
+                inputmode="url"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="https://mcp.example.com/mcp"
+                aria-label="MCP server URL"
+                data-i18n-aria-label="MCP server URL"
+              />
+              <small id="mcpTransport" class="mcp-detected" hidden></small>
+            </label>
+            <fieldset class="mcp-headers">
+              <legend data-i18n="Request headers">Request headers</legend>
+              <p class="mcp-hint">
+                <span
+                  data-i18n="The value is sent exactly as you type it. For Authorization, include the scheme, such as Bearer token."
+                  >The value is sent exactly as you type it. For Authorization,
+                  include the scheme, such as Bearer token.</span
+                >
+              </p>
+              <div class="mcp-header-row">
+                <select
+                  id="mcpAuthHeader"
+                  aria-label="Header name"
+                  data-i18n-aria-label="Header name"
+                >
+                  <option value="Authorization">authorization</option>
+                  <option value="X-API-Key">x-api-key</option>
+                  <option value="X-Auth-Token">x-auth-token</option>
+                  <option value="custom" data-i18n="Custom header">
+                    Custom header
+                  </option>
+                </select>
+                <input
+                  id="mcpAuthName"
+                  type="text"
+                  maxlength="80"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Header name"
+                  aria-label="Custom header name"
+                  data-i18n-placeholder="Header name"
+                  data-i18n-aria-label="Custom header name"
+                  hidden
+                />
+                <input
+                  id="mcpAuthValue"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="Header value"
+                  aria-label="Header value"
+                  data-i18n-placeholder="Header value"
+                  data-i18n-aria-label="Header value"
+                />
+              </div>
+            </fieldset>
             <button id="mcpAddBtn" type="submit" class="secondary">
-              <span data-i18n="Add MCP">Add MCP</span>
+              <span data-i18n="Add">Add</span>
             </button>
           </form>
           <p id="mcpMessage" class="coupon-message" role="status" hidden></p>

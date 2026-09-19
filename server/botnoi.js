@@ -125,6 +125,8 @@ export function mcpToolPayload({
 }) {
   const headers = {};
   if (authHeader && authValue) headers[authHeader] = authValue;
+  const isAuthorization = String(authHeader || "Authorization").toLowerCase() === "authorization";
+  const token = String(authValue || "").replace(/^Bearer\s+/i, "");
   return {
     name: String(name).trim().slice(0, 80),
     description: String(description || `MCP server ${url}`).slice(0, 500),
@@ -136,11 +138,11 @@ export function mcpToolPayload({
       endpoint: String(url).trim(),
       headers,
       timeout: 60,
-      ...(authValue
+      ...(authValue && isAuthorization
         ? {
             auth: {
               type: "bearer",
-              api_key: authValue,
+              api_key: token,
               header_name: authHeader || "Authorization",
             },
           }

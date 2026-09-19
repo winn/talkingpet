@@ -834,8 +834,8 @@ async function loadMcpServers() {
         <div>
           <strong>${escapeHtml(server.name)}</strong>
           <p class="admin-row-meta">${escapeHtml(server.url)}${
-            server.botnoi_tool_name
-              ? ` · ${escapeHtml(server.botnoi_tool_name)}`
+            server.auth_header
+              ? ` · ${escapeHtml(String(server.auth_header).toLowerCase())}`
               : ""
           }</p>
         </div>
@@ -848,30 +848,81 @@ async function loadMcpServers() {
   }
 }
 
+function mcpTransportKind(url) {
+  try {
+    const path = new URL(url).pathname.replace(/\/+$/, "");
+    return /\/sse$/i.test(path) ? "SSE" : "Streamable HTTP";
+  } catch {
+    return "";
+  }
+}
+
+function paintMcpTransport() {
+  const note = $("#mcpTransport");
+  if (!note) return;
+  const kind = mcpTransportKind($("#mcpUrl")?.value.trim() || "");
+  note.hidden = !kind;
+  if (kind) localizeText(note, "{kind} · Detected", { kind });
+}
+
+function readMcpHeader() {
+  const picked = $("#mcpAuthHeader")?.value || "Authorization";
+  const name = picked === "custom" ? $("#mcpAuthName")?.value.trim() || "" : picked;
+  const authValue = $("#mcpAuthValue")?.value.trim() || "";
+  if (!authValue) return {};
+  if (!/^[A-Za-z0-9-]{1,80}$/.test(name)) {
+    throw new Error(t("Header name is not allowed."));
+  }
+  return { authHeader: name, authValue };
+}
+
 function bindMcpForm() {
   const form = $("#mcpForm");
   if (!form) return;
+  $("#mcpUrl")?.addEventListener("input", paintMcpTransport);
+  $("#mcpAuthHeader")?.addEventListener("change", () => {
+    const custom = $("#mcpAuthName");
+    if (!custom) return;
+    const show = $("#mcpAuthHeader").value === "custom";
+    custom.hidden = !show;
+    if (show) custom.focus();
+  });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const name = $("#mcpName").value.trim();
     const url = $("#mcpUrl").value.trim();
-    const authValue = $("#mcpAuthValue").value.trim();
     if (!name || !url) {
       setMcpMessage(t("Name and URL are required."));
+      return;
+    }
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      parsed = null;
+    }
+    if (!parsed || parsed.protocol !== "https:") {
+      setMcpMessage(t("MCP server URL must start with https."));
+      return;
+    }
+    let header;
+    try {
+      header = readMcpHeader();
+    } catch (err) {
+      setMcpMessage(err instanceof Error ? err.message : t("Header name is not allowed."));
       return;
     }
     const button = $("#mcpAddBtn");
     button.disabled = true;
     try {
-      await createMcpServer({
-        name,
-        url,
-        authValue: authValue || undefined,
-        authHeader: authValue ? "Authorization" : undefined,
-      });
+      await createMcpServer({ name, url, ...header });
       $("#mcpName").value = "";
       $("#mcpUrl").value = "";
       $("#mcpAuthValue").value = "";
+      $("#mcpAuthName").value = "";
+      $("#mcpAuthName").hidden = true;
+      $("#mcpAuthHeader").value = "Authorization";
+      paintMcpTransport();
       setMcpMessage(t("MCP server connected."), true);
       await loadMcpServers();
     } catch (err) {

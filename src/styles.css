@@ -3976,15 +3976,52 @@ html[lang="th"] :is(.panel-label, .tool-heading, .little-label) {
 }
 .mcp-form {
   display: grid;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 14px;
+  margin-top: 12px;
 }
-.mcp-form input {
+.mcp-form-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.mcp-field,
+.mcp-headers {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.mcp-field > span,
+.mcp-headers legend {
+  font-size: 13px;
+  font-weight: 800;
+}
+.mcp-form input,
+.mcp-form select {
+  width: 100%;
   min-height: 44px;
   border: 1.5px solid #e3cdb5;
   background: #fffefb;
   border-radius: 12px;
   padding: 0 12px;
+  font: inherit;
+  color: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mcp-header-row {
+  display: grid;
+  gap: 8px;
+}
+.mcp-hint,
+.mcp-detected {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 .mcp-list {
   margin-top: 12px;
