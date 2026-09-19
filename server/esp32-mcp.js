@@ -4,7 +4,7 @@ import { env } from "./env.js";
 
 const PROTOCOL_VERSION = "2025-03-26";
 const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const DEFAULT_BASE = "https://produces-metals-vic-domains.trycloudflare.com";
+const DEFAULT_BASE = "https://shipping-nickel-erik-ons.trycloudflare.com";
 const LED_PINS = [15, 16, 17];
 const STATES = ["on", "off", "toggle"];
 const COLORS = ["red", "green", "blue", "yellow", "purple", "cyan", "white", "off"];
