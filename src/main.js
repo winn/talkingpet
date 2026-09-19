@@ -118,6 +118,7 @@ let activeChatPet = null;
 let talkMcpResult = "";
 let mcpTurnBusy = false;
 const mcpHandledTurns = new Set();
+const mcpSeenCapture = new Set();
 let petToolsPet = null;
 let lastPets = null;
 let strokeSnapshot = null;
@@ -492,6 +493,7 @@ async function sendTypedMessage(text) {
   if (!pet) return;
   typedTurns.push({ sender: "user", text, timestamp: Date.now() });
   renderChatLog(currentTurns());
+  if (pet.mcpLinks?.length && (await answerWithMcp(text))) return;
   if (!window.ChatWidget?.sendUserMessage) {
     notify("Chat text is not available right now. Try the voice call.");
     return;
@@ -991,11 +993,22 @@ function hookWidgetUserMessages() {
   }
 }
 
+function noteCapturedMcpTurns() {
+  if (!activeChatPet?.mcpLinks?.length) return;
+  for (const turn of getCapturedTurns()) {
+    if (turn.sender !== "user" || !turn.text) continue;
+    const key = `${turn.timestamp || 0}:${turn.text}`;
+    if (mcpSeenCapture.has(key)) continue;
+    mcpSeenCapture.add(key);
+    void answerWithMcp(turn.text);
+  }
+}
+
 async function answerWithMcp(text) {
   const pet = activeChatPet;
   const line = String(text || "").trim();
-  if (!pet?.mcpLinks?.length || !line || mcpTurnBusy) return;
-  if (mcpHandledTurns.has(line)) return;
+  if (!pet?.mcpLinks?.length || !line || mcpTurnBusy) return false;
+  if (mcpHandledTurns.has(line)) return true;
   const status = document.querySelector("#chatStatus");
   mcpTurnBusy = true;
   if (status) localizeText(status, "Checking a tool…");
@@ -1004,12 +1017,12 @@ async function answerWithMcp(text) {
     if (activeChatPet?.id !== pet.id) return;
     if (!used?.matched) {
       if (status) status.textContent = "";
-      return;
+      return false;
     }
     mcpHandledTurns.add(line);
     if (!used.ok || !used.result) {
       if (status) localizeText(status, "Could not use {name}.", { name: used.serverName || "tool" });
-      return;
+      return false;
     }
     talkMcpResult = mcpResultInstruction({
       userText: line,
@@ -1031,9 +1044,11 @@ async function answerWithMcp(text) {
       widgetUserMessagesHooked = false;
       hookWidgetUserMessages();
     }
+    return true;
   } catch (err) {
     console.warn("[TalkingMomo] MCP call failed:", err);
     if (status) localizeText(status, "Could not use {name}.", { name: "tool" });
+    return false;
   } finally {
     mcpTurnBusy = false;
   }
@@ -1149,6 +1164,7 @@ export async function launchPetChat(pet) {
   typedTurns = [];
   talkMcpResult = "";
   mcpHandledTurns.clear();
+  mcpSeenCapture.clear();
   mcpTurnBusy = false;
   clearCapturedTurns();
   sessionTranscriptBackup = [];
@@ -1156,6 +1172,7 @@ export async function launchPetChat(pet) {
   const paintCaptured = () => {
     if (launchToken !== chatLaunchToken) return;
     if (isChatLogOpen()) renderChatLog(currentTurns());
+    noteCapturedMcpTurns();
   };
   startChatCapture(document.querySelector("#chatWidgetContainer"), {
     onCapture: paintCaptured,

@@ -8,7 +8,7 @@ export function mcpResultInstruction({ userText, tool, serverName, result, langu
       : "Say the answer immediately. Do not greet again.";
   return (
     `\n\n${reply} The person just asked: "${String(userText || "").slice(0, 300)}". ` +
-    `You already called ${tool} (${serverName}). Use only this result and do not invent facts:\n${result}`
+    `You already called ${tool} (${serverName}). Say only this result out loud. Do not say you do not know, and do not invent facts:\n${result}`
   );
 }
 

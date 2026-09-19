@@ -99,7 +99,7 @@ const TOOL_FAMILIES = [
   { tool: /secret|คำลับ/i, text: /secret|คำลับ|รหัสลับ/i },
   {
     tool: /get_kit_status|status|sensor/i,
-    text: /อุณหภูมิ|ความชื้น|แสง|สว่าง|มืด|สถานะ|sensor|humidity|temperature|ldr|kit/i,
+    text: /อุณหภูมิ|ความชื้น|แสง|สว่าง|มืด|สถานะ|sensor|humidity|temperature|ldr|kit|อากาศ|ฝน|weather|rain|forecast|ร้อน|หนาว/i,
   },
   {
     tool: /set_rgb|rgb/i,
@@ -162,20 +162,19 @@ export function placeQuery(raw) {
   return { query: cleaned, assumed: false };
 }
 
-export function pickTool(tools, userText, when = "") {
+export function pickTool(tools, userText) {
   const list = Array.isArray(tools) ? tools : [];
   if (!list.length) return null;
-  const blob = `${userText}\n${when}`;
   let best = null;
   let bestScore = 0;
   for (const tool of list) {
     const desc = `${tool?.name || ""} ${tool?.description || ""}`;
     let score = 0;
     for (const family of TOOL_FAMILIES) {
-      if (family.tool.test(desc) && family.text.test(blob)) score += 3;
+      if (family.tool.test(desc) && family.text.test(String(userText || ""))) score += 3;
     }
     for (const key of whenKeywords(desc)) {
-      if (key.length >= 4 && blob.toLowerCase().includes(key.toLowerCase())) score += 1;
+      if (key.length >= 4 && String(userText || "").toLowerCase().includes(key.toLowerCase())) score += 1;
     }
     if (score > bestScore) {
       best = tool;
@@ -230,7 +229,7 @@ export function chooseCall(servers, userText) {
   for (const server of servers || []) {
     const when = String(server.when || "").trim();
     if (when && !textMatchesWhen(userText, when)) continue;
-    const tool = pickTool(server.tools, userText, when);
+    const tool = pickTool(server.tools, userText, when) || (when ? fallbackTool(server.tools) : null);
     if (!tool?.name) continue;
     const built = buildArguments(tool, userText);
     return {
@@ -242,6 +241,16 @@ export function chooseCall(servers, userText) {
     };
   }
   return null;
+}
+
+function fallbackTool(tools) {
+  const list = Array.isArray(tools) ? tools : [];
+  return (
+    list.find((tool) => /status|sensor|weather|อากาศ/i.test(`${tool?.name || ""} ${tool?.description || ""}`)) ||
+    list.find((tool) => !(schemaOf(tool)?.required || []).length) ||
+    list[0] ||
+    null
+  );
 }
 
 const COLORS = {

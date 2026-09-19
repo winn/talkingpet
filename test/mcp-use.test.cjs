@@ -21,4 +21,14 @@ test("a pet with the kit server calls the matching tool", async () => {
   const status = chooseCall([server], "อุณหภูมิเท่าไหร่");
   assert.equal(status.tool, "get_kit_status");
   assert.equal(chooseCall([server], "สวัสดี"), null);
+
+  const weather = {
+    ...server,
+    when: "เรียกเมื่อถามเกี่ยวกับสภาพอากาศ",
+  };
+  const rain = chooseCall([weather], "คืออยากรู้ว่าวันนี้ฝนจะตกหรือเปล่า");
+  assert.equal(rain.tool, "get_kit_status");
+  const chiangMai = chooseCall([weather], "อากาศที่เชียงใหม่เป็นยังไงตอนนี้");
+  assert.equal(chiangMai.tool, "get_kit_status");
+  assert.deepEqual(chiangMai.args, {});
 });
